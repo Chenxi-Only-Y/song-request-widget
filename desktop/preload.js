@@ -10,6 +10,7 @@ const bridge = {
   saveState: (state) => ipcRenderer.invoke('state:save', state),
   listSystemFonts: () => ipcRenderer.invoke('fonts:list'),
   setWidgetBounds: (bounds) => ipcRenderer.invoke('widget:set-bounds', bounds),
+  setLeftCollapsed: (collapsed) => ipcRenderer.invoke('widget:left-collapsed', collapsed),
   resetBounds: () => ipcRenderer.invoke('widget:reset-bounds'),
   hideSettings: () => ipcRenderer.send('settings:hide'),
   quitApp: () => ipcRenderer.send('app:quit'),

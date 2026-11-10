@@ -45,6 +45,35 @@
     color: rgb(var(--text-rgb));
   }
   .station * { -webkit-app-region: drag; }
+  .panel-toggle {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 18px;
+    height: 18px;
+    padding: 0;
+    border: 1px solid rgba(var(--accent-rgb), calc(var(--card-opacity) * .36));
+    border-radius: 50%;
+    color: rgba(var(--text-rgb), .72);
+    background: rgba(10, 9, 8, calc(var(--card-opacity) * .5));
+    font-size: 13px;
+    line-height: 1;
+    cursor: pointer;
+    -webkit-app-region: no-drag;
+  }
+  .panel-toggle:hover {
+    color: rgb(var(--text-rgb));
+    border-color: rgba(var(--accent-rgb), .8);
+    background: rgba(10, 9, 8, calc(var(--card-opacity) * .85));
+  }
+  .expand-btn { display: none; align-self: flex-start; margin-top: 2px; }
+  .station.is-collapsed .hero { display: none; }
+  .station.is-collapsed .content { grid-template-columns: minmax(0, 1fr); }
+  .station.is-collapsed .playlist {
+    border-left: 0;
+    border-radius: 18px;
+  }
+  .station.is-collapsed .expand-btn { display: grid; }
   .photo {
     position: absolute;
     inset: 0;
@@ -477,6 +506,7 @@
       <div class="hero-top">
         <span class="eyebrow" id="eyebrow">YJ · NIGHT RADIO</span>
         <span class="onair"><i></i>ON AIR</span>
+        <button class="panel-toggle" id="collapseBtn" type="button" title="收起电台信息" aria-label="收起电台信息">‹</button>
       </div>
       <span class="grip" aria-hidden="true">⠿</span>
 
@@ -510,6 +540,7 @@
 
     <section class="playlist">
       <header class="playlist-head">
+        <button class="panel-toggle expand-btn" id="expandBtn" type="button" title="展开电台信息" aria-label="展开电台信息">›</button>
         <div style="min-width:0">
           <span class="kicker" id="playlistKicker">TONIGHT'S PLAYLIST</span>
           <div class="playlist-title-line">
@@ -642,12 +673,16 @@
   const count = document.getElementById('count');
   const list = document.getElementById('list');
   const track = document.getElementById('track');
+  const collapseBtn = document.getElementById('collapseBtn');
+  const expandBtn = document.getElementById('expandBtn');
 
   let state = DEFAULT_STATE;
   let renderTimer = 0;
 
   bindBridge();
   applyState(state);
+  collapseBtn.addEventListener('click', () => setLeftCollapsed(true));
+  expandBtn.addEventListener('click', () => setLeftCollapsed(false));
 
   function bindBridge() {
     const bridge = window.desktopBridge;
@@ -678,6 +713,14 @@
     stage.style.transform = `scale(${value})`;
   }
 
+  function setLeftCollapsed(collapsed) {
+    station.classList.toggle('is-collapsed', collapsed);
+    const bridge = window.desktopBridge;
+    if (bridge && typeof bridge.setLeftCollapsed === 'function') {
+      bridge.setLeftCollapsed(collapsed);
+    }
+  }
+
   function hexToRgb(hex) {
     const value = String(hex || '').replace('#', '');
     if (!/^[0-9a-f]{6}$/i.test(value)) return null;
@@ -690,6 +733,7 @@
 
   function applyState(incoming) {
     state = incoming;
+    station.classList.toggle('is-collapsed', Boolean(state.widget && state.widget.leftCollapsed));
     const fonts = FONT_STACKS[state.fontStyle] || FONT_STACKS.default;
     station.style.setProperty('--font-serif', fonts.serif);
     station.style.setProperty('--font-sans', fonts.sans);

@@ -79,7 +79,8 @@ const DEFAULT_STATE = {
     alwaysOnTop: false,
     clickThrough: false,
     draggable: true,
-    aspectLock: true
+    aspectLock: true,
+    leftCollapsed: false
   }
 };
 
@@ -203,7 +204,8 @@ function sanitizeState(source) {
       alwaysOnTop: widget.alwaysOnTop === true,
       clickThrough: widget.clickThrough === true,
       draggable: widget.draggable !== false,
-      aspectLock: widget.aspectLock !== false
+      aspectLock: widget.aspectLock !== false,
+      leftCollapsed: widget.leftCollapsed === true
     }
   };
 }
@@ -331,10 +333,11 @@ function workArea() {
 
 function computeBounds(widget, hasTitleImage = false) {
   const area = workArea();
+  const minWidth = widget.leftCollapsed ? 340 : 660;
   const width = clamp(
-    Math.round(widget.width || area.width * 0.415),
-    660,
-    Math.max(660, Math.min(1300, area.width))
+    Math.round(widget.width || (widget.leftCollapsed ? area.width * 0.22 : area.width * 0.415)),
+    minWidth,
+    Math.max(minWidth, Math.min(1300, area.width))
   );
   const minHeight = 430;
   const height = clamp(
@@ -367,6 +370,7 @@ function applyIncomingState(incoming, preservePosition = true) {
   if (preservePosition && state) {
     next.widget.x = state.widget.x;
     next.widget.y = state.widget.y;
+    next.widget.leftCollapsed = state.widget.leftCollapsed;
   }
   state = next;
   materializeBounds();
@@ -673,6 +677,33 @@ function registerIpc() {
     state.widget.y = null;
     state.widget.width = null;
     state.widget.height = null;
+    materializeBounds();
+    applyWidgetWindow();
+    sendWidgetState();
+    sendGeometryToSettings();
+    scheduleSave();
+    return { ok: true, state };
+  });
+
+  ipcMain.handle('widget:left-collapsed', (event, collapsed) => {
+    if (!widgetWindow || widgetWindow.isDestroyed() || event.sender !== widgetWindow.webContents) {
+      return { ok: false, state };
+    }
+    const next = Boolean(collapsed);
+    if (state.widget.leftCollapsed === next) return { ok: true, state };
+    const bounds = widgetWindow.getBounds();
+    if (next) {
+      const leftWidth = Math.round(bounds.width * 0.47);
+      state.widget.width = Math.max(340, bounds.width - leftWidth);
+      state.widget.x = bounds.x + (bounds.width - state.widget.width);
+    } else {
+      const totalWidth = Math.round(bounds.width / 0.53);
+      const leftWidth = totalWidth - bounds.width;
+      state.widget.width = totalWidth;
+      state.widget.x = bounds.x - leftWidth;
+    }
+    state.widget.height = bounds.height;
+    state.widget.leftCollapsed = next;
     materializeBounds();
     applyWidgetWindow();
     sendWidgetState();
