@@ -295,8 +295,37 @@
   }
   .hint { margin: 7px 0 0; color: #9a8b78; font-size: 9.5px; line-height: 1.6; }
   .hint code { padding: 1px 4px; border-radius: 4px; background: #f1e9dd; color: #806a50; font-family: ui-monospace, Consolas, monospace; font-size: 9px; }
-  .quick-add { display: grid; grid-template-columns: 1fr auto; gap: 7px; margin-top: 8px; }
+  .quick-add { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 7px; margin-top: 8px; }
   .quick-add .btn { height: 35px; border-radius: 8px; font-size: 10.5px; }
+  .search-panel {
+    margin-top: 8px;
+    padding: 8px;
+    border: 1px solid #e8ddce;
+    border-radius: 9px;
+    background: #fbf7f0;
+  }
+  .search-line { display: flex; gap: 6px; }
+  .search-line .input { height: 32px; font-size: 10.5px; }
+  .search-line .mini-btn { height: 32px; }
+  .search-results { display: flex; flex-direction: column; gap: 3px; max-height: 148px; overflow-y: auto; margin-top: 6px; }
+  .search-result {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    width: 100%;
+    padding: 5px 7px;
+    border: 1px solid #eee4d6;
+    border-radius: 6px;
+    color: #5f503f;
+    background: #fffdf9;
+    font-size: 9.5px;
+    text-align: left;
+    cursor: pointer;
+  }
+  .search-result:hover { border-color: #ceb18a; background: #fffaf1; }
+  .search-result small { flex: none; color: #a69783; font-family: Georgia, "Times New Roman", serif; font-size: 8px; }
+  .search-empty { padding: 8px; color: #a69783; font-size: 9px; text-align: center; }
   .bottom-actions { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 9px; }
   .mini-btn {
     display: inline-flex;
@@ -577,6 +606,14 @@
         <div class="quick-add">
           <input class="input" id="quickSong" type="text" maxlength="60" autocomplete="off" placeholder="快速添加：晴天 - 周杰伦">
           <button class="btn btn-dark" id="quickAddBtn" type="button">添加</button>
+          <button class="btn btn-ghost" id="searchSongsBtn" type="button">搜索</button>
+        </div>
+        <div class="search-panel" id="songSearchPanel" hidden>
+          <div class="search-line">
+            <input class="input" id="songSearchInput" type="search" autocomplete="off" placeholder="搜索歌单里的歌曲或歌手…">
+            <button class="mini-btn" id="songSearchClose" type="button">关闭</button>
+          </div>
+          <div class="search-results" id="songSearchResults"></div>
         </div>
         <div class="bottom-actions">
           <span class="tip">拖动挂件任意位置可以移动</span>
@@ -715,9 +752,16 @@
         <div class="field-label"><span>滚动速度</span><small class="range-value" id="speedValue">1.0×</small></div>
         <div class="range-row"><input class="range" id="speedRange" type="range" min="0.3" max="2.5" step="0.1" value="1"></div>
       </div>
-      <div class="segmented" role="group" aria-label="列表列数">
-        <button id="col1Btn" type="button" data-cols="1">单列</button>
-        <button id="col2Btn" type="button" data-cols="2" class="is-active">双列</button>
+      <div class="field" style="margin-top:10px">
+        <div class="field-label"><span>每行歌曲数</span><small class="range-value" id="columnsValue">2 首</small></div>
+        <select class="select" id="columnsSelect">
+          <option value="1">1 首 / 行</option>
+          <option value="2" selected>2 首 / 行</option>
+          <option value="3">3 首 / 行</option>
+          <option value="4">4 首 / 行</option>
+          <option value="5">5 首 / 行</option>
+          <option value="6">6 首 / 行</option>
+        </select>
       </div>
     </section>
 
@@ -870,6 +914,8 @@
     playlistTitleInput: $('#playlistTitleInput'), playlistKickerInput: $('#playlistKickerInput'),
     playlistNoteInput: $('#playlistNoteInput'), songsInput: $('#songsInput'), songCount: $('#songCount'),
     quickSong: $('#quickSong'), quickAddBtn: $('#quickAddBtn'), sampleBtn: $('#sampleBtn'), clearBtn: $('#clearBtn'),
+    searchSongsBtn: $('#searchSongsBtn'), songSearchPanel: $('#songSearchPanel'), songSearchInput: $('#songSearchInput'),
+    songSearchResults: $('#songSearchResults'), songSearchClose: $('#songSearchClose'),
     stationTitleInput: $('#stationTitleInput'), eyebrowInput: $('#eyebrowInput'), subtitleInput: $('#subtitleInput'),
     tagsInput: $('#tagsInput'), announceInput: $('#announceInput'), handleInput: $('#handleInput'),
     actionList: $('#actionList'), addActionBtn: $('#addActionBtn'), actionIconFile: $('#actionIconFile'),
@@ -882,8 +928,7 @@
     widthInput: $('#widthInput'), heightInput: $('#heightInput'), applySizeBtn: $('#applySizeBtn'),
     resetBoundsBtn: $('#resetBoundsBtn'),
     autoplayToggle: $('#autoplayToggle'), speedRange: $('#speedRange'), speedValue: $('#speedValue'),
-    col1Btn: $('#col1Btn'), col2Btn: $('#col2Btn'),
-    typeSectionSelect: $('#typeSectionSelect'), sectionFontSelect: $('#sectionFontSelect'),
+    columnsSelect: $('#columnsSelect'), columnsValue: $('#columnsValue'),    typeSectionSelect: $('#typeSectionSelect'), sectionFontSelect: $('#sectionFontSelect'),
     sectionSizeRange: $('#sectionSizeRange'), sectionSizeValue: $('#sectionSizeValue'),
     sectionColorInput: $('#sectionColorInput'), sectionColorValue: $('#sectionColorValue'),
     resetSectionStyle: $('#resetSectionStyle'), importFontBtn: $('#importFontBtn'),
@@ -1028,6 +1073,7 @@
     el.songsInput.addEventListener('input', () => {
       state.songsText = el.songsInput.value;
       el.songCount.textContent = String(countSongs(state.songsText));
+      if (!el.songSearchPanel.hidden) renderSearchResults();
       scheduleSave();
     });
 
@@ -1036,6 +1082,33 @@
       if (event.key === 'Enter') {
         event.preventDefault();
         addSong();
+      }
+    });
+    el.searchSongsBtn.addEventListener('click', () => {
+      const opening = el.songSearchPanel.hidden;
+      el.songSearchPanel.hidden = !opening;
+      el.searchSongsBtn.textContent = opening ? '收起' : '搜索';
+      if (opening) {
+        renderSearchResults();
+        el.songSearchInput.focus();
+      }
+    });
+    el.songSearchClose.addEventListener('click', () => {
+      el.songSearchPanel.hidden = true;
+      el.searchSongsBtn.textContent = '搜索';
+    });
+    el.songSearchInput.addEventListener('input', renderSearchResults);
+    el.songSearchInput.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') {
+        el.songSearchPanel.hidden = true;
+        el.searchSongsBtn.textContent = '搜索';
+      }
+      if (event.key === 'Enter') {
+        const first = el.songSearchResults.querySelector('.search-result');
+        if (first) {
+          event.preventDefault();
+          first.click();
+        }
       }
     });
     el.sampleBtn.addEventListener('click', () => {
@@ -1119,12 +1192,10 @@
       paintRange(el.speedRange);
       scheduleSave();
     });
-    [el.col1Btn, el.col2Btn].forEach((button) => {
-      button.addEventListener('click', () => {
-        state.columns = Number(button.dataset.cols);
-        syncColumns();
-        scheduleSave();
-      });
+    el.columnsSelect.addEventListener('change', () => {
+      state.columns = Number(el.columnsSelect.value);
+      syncColumns();
+      scheduleSave();
     });
     el.opacityRange.addEventListener('input', () => {
       state.opacity = Number(el.opacityRange.value) / 100;
@@ -1393,6 +1464,7 @@
     state.songsText = current ? current + '\n' + line : line;
     el.songsInput.value = state.songsText;
     el.songCount.textContent = String(countSongs(state.songsText));
+    if (!el.songSearchPanel.hidden) renderSearchResults();
     el.quickSong.value = '';
     saveNow();
     el.songsInput.scrollTop = el.songsInput.scrollHeight;
@@ -1400,13 +1472,65 @@
     toast('已加入歌单');
   }
 
+  function renderSearchResults() {
+    const query = el.songSearchInput.value.trim().toLowerCase();
+    el.songSearchResults.replaceChildren();
+    if (!query) {
+      const empty = document.createElement('div');
+      empty.className = 'search-empty';
+      empty.textContent = '输入歌名或歌手，查找当前歌单';
+      el.songSearchResults.append(empty);
+      return;
+    }
+    const lines = String(state.songsText || '').split(/\r?\n/);
+    const matches = [];
+    lines.forEach((line, index) => {
+      if (line.trim() && line.toLowerCase().includes(query)) {
+        matches.push({ line: line.trim(), index });
+      }
+    });
+    if (!matches.length) {
+      const empty = document.createElement('div');
+      empty.className = 'search-empty';
+      empty.textContent = '歌单里没有找到';
+      el.songSearchResults.append(empty);
+      return;
+    }
+    matches.slice(0, 12).forEach((match) => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'search-result';
+      const name = document.createElement('span');
+      name.textContent = match.line;
+      const meta = document.createElement('small');
+      meta.textContent = `第 ${match.index + 1} 行`;
+      button.append(name, meta);
+      button.addEventListener('click', () => selectSongLine(match.index));
+      el.songSearchResults.append(button);
+    });
+  }
+
+  function selectSongLine(index) {
+    const lines = el.songsInput.value.split(/\r?\n/);
+    if (index < 0 || index >= lines.length) return;
+    let start = 0;
+    for (let i = 0; i < index; i += 1) start += lines[i].length + 1;
+    const end = start + lines[index].length;
+    el.songsInput.focus();
+    el.songsInput.setSelectionRange(start, end);
+    const lineHeight = parseFloat(getComputedStyle(el.songsInput).lineHeight) || 20;
+    el.songsInput.scrollTop = Math.max(0, index * lineHeight - el.songsInput.clientHeight / 2);
+    toast('已定位到这首歌');
+  }
+
   function countSongs(text) {
     return String(text || '').split(/\r?\n/).filter((line) => line.trim()).length;
   }
 
   function syncColumns() {
-    el.col1Btn.classList.toggle('is-active', Number(state.columns) === 1);
-    el.col2Btn.classList.toggle('is-active', Number(state.columns) === 2);
+    const columns = Math.min(6, Math.max(1, Math.round(Number(state.columns) || 2)));
+    el.columnsSelect.value = String(columns);
+    el.columnsValue.textContent = `${columns} 首`;
   }
 
   function syncThemes() {

@@ -191,7 +191,7 @@ function sanitizeState(source) {
     showAvatar: src.showAvatar !== false,
     speed: clamp(Number(src.speed) || 1, 0.3, 2.5),
     autoplay: src.autoplay !== false,
-    columns: Number(src.columns) === 1 ? 1 : 2,
+    columns: Number.isFinite(Number(src.columns)) ? clamp(Math.round(Number(src.columns)), 1, 6) : 2,
     theme: THEMES.includes(src.theme) ? src.theme : DEFAULT_STATE.theme,
     opacity: Number.isFinite(opacitySource) ? clamp(opacitySource, 0, 0.9) : DEFAULT_STATE.opacity,
     background,
