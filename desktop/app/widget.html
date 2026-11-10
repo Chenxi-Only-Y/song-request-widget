@@ -469,6 +469,18 @@
   .song { min-width: 0; overflow: hidden; color: rgba(var(--text-rgb), .93); font-size: 12.5px; white-space: nowrap; text-overflow: ellipsis; }
   .artist { min-width: 0; overflow: hidden; color: rgba(var(--text-rgb), .4); font-size: 8.5px; font-weight: 300; white-space: nowrap; text-overflow: ellipsis; }
   .row::after { content: ""; flex: none; width: 2px; height: 2px; border-radius: 50%; background: rgba(var(--accent-rgb), .28); }
+
+  /* Dense columns: keep the song title readable instead of shrinking it to nothing. */
+  .station[data-cols="3"] .artist,
+  .station[data-cols="4"] .artist,
+  .station[data-cols="5"] .artist,
+  .station[data-cols="6"] .artist { display: none; }
+  .station[data-cols="5"] .idx,
+  .station[data-cols="6"] .idx { display: none; }
+  .station[data-cols="5"] .row,
+  .station[data-cols="6"] .row { gap: 4px; padding: 0 5px; }
+  .station[data-cols="5"] .song { font-size: 10.5px; }
+  .station[data-cols="6"] .song { font-size: 9.5px; }
   .empty { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; color: rgba(var(--text-rgb), .4); text-align: center; }
   .empty svg { opacity: .45; }
   .empty strong { color: rgba(var(--text-rgb), .65); font-family: var(--font-serif); font-size: 14px; font-weight: 500; letter-spacing: .05em; }
@@ -956,6 +968,7 @@
     const columns = Math.min(6, Math.max(1, Math.round(Number(state.columns) || 2)));
     count.textContent = String(songs.length);
     station.style.setProperty('--cols', String(columns));
+    station.dataset.cols = String(columns);
 
     if (!songs.length) {
       track.style.display = 'none';

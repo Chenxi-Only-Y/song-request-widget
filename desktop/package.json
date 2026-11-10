@@ -1,7 +1,7 @@
 {
   "name": "song-request-widget",
   "productName": "Song Request 点歌挂件",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Windows 桌面透明点歌台挂件（Electron）",
   "main": "main.js",
   "author": "Song Request",
@@ -9,7 +9,7 @@
   "private": true,
   "scripts": {
     "start": "electron .",
-    "package": "electron-packager . \"Song Request\" --platform=win32 --arch=x64 --out=\"dist\" --overwrite --asar --icon=assets/icon.ico --prune=true --app-version=1.2.0 --ignore=\"^/node_modules\""
+    "package": "electron-packager . \"Song Request\" --platform=win32 --arch=x64 --out=\"dist\" --overwrite --asar --icon=assets/icon.ico --prune=true --app-version=1.2.1 --ignore=\"^/node_modules\""
   },
   "devDependencies": {
     "electron": "^45.2.3",
