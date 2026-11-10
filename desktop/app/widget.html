@@ -1,0 +1,960 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="dark">
+<title>Song Request · 点歌台</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  :root {
+    --accent: #e7b97a;
+    --accent-rgb: 231, 185, 122;
+    --text-rgb: 251, 244, 233;
+    --card-opacity: .62;
+    --font-serif: "Noto Serif SC", "Source Han Serif SC", "Songti SC", "STSong", "SimSun", serif;
+    --font-sans: "MiSans", "HarmonyOS Sans SC", "PingFang SC", "Microsoft YaHei", "Noto Sans SC", sans-serif;
+  }
+  html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; background: transparent; }
+  body {
+    color: rgb(var(--text-rgb));
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    user-select: none;
+  }
+  .stage {
+    position: absolute;
+    top: 0;
+    left: 0;
+    transform-origin: top left;
+  }
+  .station {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    border: 1px solid rgba(255, 249, 239, calc(var(--card-opacity) * .23));
+    border-radius: 18px;
+    background:
+      linear-gradient(150deg, rgba(34, 27, 22, var(--card-opacity)) 0%, rgba(11, 9, 8, var(--card-opacity)) 100%),
+      radial-gradient(80% 70% at 12% 0%, rgba(var(--accent-rgb), calc(var(--card-opacity) * .15)), transparent 70%);
+    box-shadow: inset 0 1px 0 rgba(255, 248, 235, calc(var(--card-opacity) * .14));
+    -webkit-app-region: drag;
+    cursor: grab;
+    font-family: var(--font-sans);
+    color: rgb(var(--text-rgb));
+  }
+  .station * { -webkit-app-region: drag; }
+  .photo {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    opacity: 0;
+    background-position: center;
+    background-size: cover;
+    transition: opacity .3s ease;
+  }
+  .photo.is-on { opacity: 1; }
+  .photo-scrim {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    opacity: 0;
+    background: linear-gradient(180deg, rgba(7, 9, 12, calc(var(--card-opacity) * .3)), rgba(5, 6, 8, calc(var(--card-opacity) * .95)));
+    transition: opacity .3s ease;
+  }
+  .station.has-photo .photo-scrim { opacity: 1; }
+
+  .content {
+    position: relative;
+    z-index: 2;
+    display: grid;
+    grid-template-columns: minmax(290px, 47%) minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+  }
+
+  /* left station identity */
+  .hero {
+    position: relative;
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    padding: 12px 13px 11px 15px;
+    border-right: 1px solid rgba(255, 248, 235, calc(var(--card-opacity) * .13));
+  }
+  .hero::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background: linear-gradient(135deg, rgba(255, 250, 240, calc(var(--card-opacity) * .06)), transparent 50%);
+    pointer-events: none;
+  }
+  .hero-top {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    min-height: 15px;
+    -webkit-app-region: drag;
+  }
+  .eyebrow {
+    min-width: 0;
+    overflow: hidden;
+    color: rgba(var(--accent-rgb), .78);
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 8.5px;
+    letter-spacing: .22em;
+    line-height: 1;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+  .onair {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    height: 15px;
+    padding: 0 6px;
+    border: 1px solid rgba(255, 255, 255, calc(var(--card-opacity) * .23));
+    border-radius: 99px;
+    color: rgba(var(--text-rgb), .62);
+    background: rgba(10, 12, 15, calc(var(--card-opacity) * .45));
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 7px;
+    letter-spacing: .12em;
+  }
+  .onair i {
+    width: 3px;
+    height: 3px;
+    border-radius: 50%;
+    background: #e08b74;
+    box-shadow: 0 0 6px rgba(224, 139, 116, .9);
+    animation: onairPulse 2.4s ease-in-out infinite;
+  }
+  .grip {
+    position: absolute;
+    top: 25px;
+    right: 1px;
+    color: rgba(255, 248, 235, .2);
+    font-size: 11px;
+    letter-spacing: 1px;
+    pointer-events: none;
+  }
+
+  .identity {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    min-width: 0;
+    margin-top: 10px;
+    -webkit-app-region: drag;
+  }
+  .avatar {
+    position: relative;
+    flex: none;
+    width: 52px;
+    height: 52px;
+    padding: 2px;
+    overflow: hidden;
+    border-radius: 50%;
+    background: linear-gradient(145deg, rgba(var(--accent-rgb), .95), rgba(255, 255, 255, .14) 46%, rgba(var(--accent-rgb), .26));
+    box-shadow: 0 0 0 1px rgba(255, 240, 219, .16), 0 8px 20px rgba(0, 0, 0, .3);
+  }
+  .avatar::after {
+    content: "";
+    position: absolute;
+    inset: 4px;
+    border-radius: 50%;
+    border: 1px solid rgba(255, 249, 238, .14);
+    pointer-events: none;
+  }
+  .avatar img {
+    display: none;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    object-fit: cover;
+  }
+  .avatar.has-image img { display: block; }
+  .avatar.has-image .initial { display: none; }
+  .initial {
+    display: grid;
+    place-items: center;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    color: #fff8ec;
+    background:
+      radial-gradient(circle at 36% 26%, rgba(255, 240, 210, .3), transparent 45%),
+      linear-gradient(155deg, rgba(64, 46, 30, .92), rgba(24, 18, 13, .98));
+    font-family: var(--font-serif);
+    font-size: 21px;
+    font-weight: 700;
+  }
+  .hide-avatar .avatar { display: none; }
+
+  .title-copy { min-width: 0; flex: 1; }
+  .title-line { display: flex; align-items: center; min-width: 0; }
+  h1 {
+    max-width: 100%;
+    margin: 0;
+    overflow: hidden;
+    color: rgb(var(--text-rgb));
+    font-family: var(--font-serif);
+    font-size: 25px;
+    font-weight: 700;
+    line-height: 1.1;
+    letter-spacing: .05em;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    text-shadow: 0 3px 14px rgba(0, 0, 0, .35);
+  }
+  .title-art-row {
+    display: none;
+    align-items: center;
+    min-width: 0;
+    max-height: 106px;
+    margin-top: 7px;
+  }
+  .has-title-image .title-art-row { display: flex; }
+  .has-title-image h1 { display: none; }
+  .title-image {
+    display: block;
+    max-width: 100%;
+    max-height: 106px;
+    object-fit: contain;
+    filter: drop-shadow(0 3px 12px rgba(0, 0, 0, .45));
+  }
+  .subtitle-row {
+    min-width: 0;
+    margin-top: 5px;
+    padding-left: 61px;
+  }
+  .has-title-image .subtitle-row { padding-left: 0; }
+  .subtitle {
+    max-width: 100%;
+    margin: 0;
+    overflow: hidden;
+    color: rgba(var(--text-rgb), .66);
+    font-size: 9.5px;
+    font-weight: 300;
+    letter-spacing: .05em;
+    line-height: 1.35;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  .tag-row { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 7px; min-height: 0; }
+  .tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    min-height: 17px;
+    height: auto;
+    padding: 3px 6px;
+    border: 1px solid rgba(255, 248, 238, calc(var(--card-opacity) * .2));
+    border-radius: 99px;
+    color: rgba(var(--text-rgb), .68);
+    background: rgba(10, 10, 11, calc(var(--card-opacity) * .3));
+    font-size: 8px;
+    font-weight: 300;
+    letter-spacing: .04em;
+  }
+  .tag::before { content: ""; width: 2px; height: 2px; border-radius: 50%; background: rgba(var(--accent-rgb), .8); }
+
+  .actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 5px;
+    margin-top: auto;
+    padding-top: 6px;
+  }
+  .action {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    min-width: 0;
+    height: auto;
+    min-height: 32px;
+    padding: 6px 8px;
+    overflow: hidden;
+    border: 1px solid rgba(var(--accent-rgb), calc(var(--card-opacity) * .36));
+    border-radius: 7px;
+    color: rgba(var(--text-rgb), .92);
+    background: rgba(10, 9, 8, calc(var(--card-opacity) * .64));
+    font-size: 12px;
+    font-weight: 300;
+    letter-spacing: .01em;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    text-shadow: 0 1px 5px rgba(0, 0, 0, .55);
+  }
+  .action i { flex: none; width: 3px; height: 3px; border-radius: 50%; background: rgba(var(--accent-rgb), .8); }
+  .action-icon {
+    flex: none;
+    width: 24px;
+    height: 24px;
+    object-fit: contain;
+    filter: drop-shadow(0 1px 3px rgba(0, 0, 0, .3));
+  }
+  .action-label {
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    font-size: 12px;
+  }
+  .hero-foot { margin-top: 8px; min-width: 0; }
+  .announce {
+    margin: 0;
+    overflow: hidden;
+    color: rgba(var(--text-rgb), .82);
+    font-family: var(--font-serif);
+    font-size: 11px;
+    font-weight: 500;
+    line-height: 1.35;
+    letter-spacing: .03em;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    text-shadow: 0 2px 10px rgba(0, 0, 0, .32);
+  }
+  .handle {
+    display: block;
+    margin-top: 3px;
+    overflow: hidden;
+    color: rgba(var(--accent-rgb), .62);
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 8px;
+    letter-spacing: .08em;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  /* right playlist */
+  .playlist {
+    position: relative;
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    padding: 12px 13px 9px;
+    background: linear-gradient(180deg, rgba(7, 8, 10, calc(var(--card-opacity) * .2)), rgba(7, 8, 10, calc(var(--card-opacity) * .35)));
+  }
+  .playlist-head {
+    flex: none;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 9px;
+    min-width: 0;
+    padding: 0 2px;
+  }
+  .kicker {
+    display: block;
+    max-width: 100%;
+    overflow: hidden;
+    color: rgba(var(--accent-rgb), .68);
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 7.5px;
+    letter-spacing: .22em;
+    line-height: 1;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+  .playlist-title-line {
+    display: flex;
+    align-items: baseline;
+    gap: 1px;
+    margin-top: 4px;
+    min-width: 0;
+  }
+  .playlist h2 {
+    margin: 0;
+    overflow: hidden;
+    font-family: var(--font-serif);
+    font-size: 22px;
+    font-weight: 700;
+    line-height: 1.15;
+    letter-spacing: .06em;
+    color: rgb(var(--text-rgb));
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    text-shadow: 0 3px 12px rgba(0, 0, 0, .24);
+  }
+  .dot { flex: none; color: var(--accent); }
+  .meta {
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding-bottom: 2px;
+    color: rgba(var(--text-rgb), .44);
+    font-size: 8.5px;
+    white-space: nowrap;
+  }
+  .count-num { color: rgba(var(--accent-rgb), .9); font-family: Georgia, "Times New Roman", serif; font-size: 13px; font-weight: 400; }
+  .eq { display: flex; align-items: flex-end; gap: 2px; height: 10px; }
+  .eq i { width: 2px; height: 100%; border-radius: 99px; background: rgba(var(--accent-rgb), .74); transform-origin: bottom; animation: equalize 1.25s ease-in-out infinite; }
+  .eq i:nth-child(1) { height: 55%; animation-delay: -.18s; }
+  .eq i:nth-child(2) { height: 100%; animation-delay: -.53s; }
+  .eq i:nth-child(3) { height: 70%; animation-delay: -.3s; }
+
+  .list {
+    position: relative;
+    flex: 1;
+    min-height: 0;
+    margin-top: 8px;
+    overflow: hidden;
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 3%, #000 95%, transparent 100%);
+    mask-image: linear-gradient(to bottom, transparent 0, #000 3%, #000 95%, transparent 100%);
+  }
+  .track { display: flex; flex-direction: column; animation: songsScroll var(--scroll-duration, 30s) linear infinite; will-change: transform; }
+  .track.is-paused { animation-play-state: paused; }
+  .group { display: grid; grid-template-columns: repeat(var(--cols, 2), minmax(0, 1fr)); gap: 4px 5px; padding-bottom: 4px; }
+  .row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    height: auto;
+    min-height: 36px;
+    padding: 5px 8px;
+    overflow: hidden;
+    border: 1px solid rgba(255, 246, 232, calc(var(--card-opacity) * .1));
+    border-radius: 7px;
+    background: rgba(255, 247, 234, calc(var(--card-opacity) * .07));
+  }
+  .idx { flex: none; width: 16px; color: rgba(var(--accent-rgb), .62); font-family: Georgia, "Times New Roman", serif; font-size: 10px; font-style: italic; }
+  .copy { display: flex; align-items: baseline; gap: 5px; flex: 1; min-width: 0; }
+  .song { min-width: 0; overflow: hidden; color: rgba(var(--text-rgb), .93); font-size: 12.5px; white-space: nowrap; text-overflow: ellipsis; }
+  .artist { min-width: 0; overflow: hidden; color: rgba(var(--text-rgb), .4); font-size: 8.5px; font-weight: 300; white-space: nowrap; text-overflow: ellipsis; }
+  .row::after { content: ""; flex: none; width: 2px; height: 2px; border-radius: 50%; background: rgba(var(--accent-rgb), .28); }
+  .empty { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; color: rgba(var(--text-rgb), .4); text-align: center; }
+  .empty svg { opacity: .45; }
+  .empty strong { color: rgba(var(--text-rgb), .65); font-family: var(--font-serif); font-size: 14px; font-weight: 500; letter-spacing: .05em; }
+  .empty span { font-size: 9px; }
+
+  .playlist-foot {
+    flex: none;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-top: 5px;
+    padding-top: 5px;
+    border-top: 1px solid rgba(255, 248, 235, calc(var(--card-opacity) * .1));
+    color: rgba(var(--text-rgb), .38);
+    font-size: 7.5px;
+    letter-spacing: .04em;
+  }
+  .note { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  .en { flex: none; color: rgba(var(--accent-rgb), .32); font-family: Georgia, "Times New Roman", serif; font-size: 6.5px; letter-spacing: .16em; }
+
+  @keyframes songsScroll { from { transform: translate3d(0, 0, 0); } to { transform: translate3d(0, -50%, 0); } }
+  @keyframes equalize { 0%, 100% { transform: scaleY(.35); } 50% { transform: scaleY(1); } }
+  @keyframes onairPulse { 0%, 100% { opacity: .55; transform: scale(.88); } 50% { opacity: 1; transform: scale(1); } }
+  @media (prefers-reduced-motion: reduce) {
+    .eq i, .onair i { animation: none; }
+  }
+</style>
+</head>
+<body>
+<div class="stage" id="stage">
+<main class="station" id="station">
+  <div class="photo" id="photo" aria-hidden="true"></div>
+  <div class="photo-scrim" aria-hidden="true"></div>
+
+  <div class="content">
+    <aside class="hero">
+      <div class="hero-top">
+        <span class="eyebrow" id="eyebrow">YJ · NIGHT RADIO</span>
+        <span class="onair"><i></i>ON AIR</span>
+      </div>
+      <span class="grip" aria-hidden="true">⠿</span>
+
+      <div class="identity" id="identity">
+        <div class="avatar" id="avatarWrap">
+          <img id="avatar" alt="">
+          <span class="initial" id="avatarInitial">晚</span>
+        </div>
+        <div class="title-copy">
+          <div class="title-line">
+            <h1 id="stationTitle">晚风电台</h1>
+          </div>
+        </div>
+      </div>
+
+      <div class="title-art-row">
+        <img class="title-image" id="titleImage" alt="">
+      </div>
+
+      <div class="subtitle-row">
+        <p class="subtitle" id="subtitle">治愈音乐台 · 每晚 21:30</p>
+      </div>
+
+      <div class="tag-row" id="tags"></div>
+      <div class="actions" id="actions"></div>
+      <div class="hero-foot">
+        <p class="announce" id="announce">今晚也要好好睡觉。</p>
+        <span class="handle" id="handle">@晚风电台</span>
+      </div>
+    </aside>
+
+    <section class="playlist">
+      <header class="playlist-head">
+        <div style="min-width:0">
+          <span class="kicker" id="playlistKicker">TONIGHT'S PLAYLIST</span>
+          <div class="playlist-title-line">
+            <h2 id="playlistTitle">今日歌单</h2><span class="dot">.</span>
+          </div>
+        </div>
+        <div class="meta">
+          <span class="eq" aria-hidden="true"><i></i><i></i><i></i></span>
+          <span><b class="count-num" id="count">16</b> 首</span>
+        </div>
+      </header>
+      <div class="list" id="list">
+        <div class="track" id="track"></div>
+      </div>
+      <footer class="playlist-foot">
+        <span class="note" id="playlistNote">点歌请打在公屏</span>
+        <span class="en">REQUEST A SONG</span>
+      </footer>
+    </section>
+  </div>
+</main>
+</div>
+
+<script>
+(() => {
+  'use strict';
+
+  const SAMPLE_SONGS = [
+    '晴天 - 周杰伦', '后来 - 刘若英', '如愿 - 王菲', '童话 - 光良',
+    '稻香 - 周杰伦', '青花 - 周传雄', '句号 - 邓紫棋', '黄昏 - 周传雄',
+    '幻听 - 许嵩', '月光 - 胡彦斌', '遇见 - 孙燕姿', '偏爱 - 张芸京',
+    '如果可以 - 韦礼安', '慢冷 - 梁静茹', '爱情转移 - 陈奕迅', '想你的夜 - 关喆'
+  ].join('\n');
+
+  const DEFAULT_STATE = {
+    songsText: SAMPLE_SONGS,
+    stationTitle: '晚风电台',
+    eyebrow: 'YJ · NIGHT RADIO',
+    subtitle: '治愈音乐台 · 每晚 21:30',
+    tagsText: '治愈系, 深夜陪伴, 点歌台',
+    buttons: [
+      { label: '送歌', icon: '' }, { label: '学歌', icon: '' },
+      { label: '录歌', icon: '' }, { label: '卡卡冠歌', icon: '' },
+      { label: '非粉丝牌点歌', icon: '' }, { label: '粉丝牌点歌', icon: '' },
+      { label: '续火', icon: '' }, { label: '接下班', icon: '' }
+    ],
+    announce: '今晚也要好好睡觉。',
+    handle: '@晚风电台',
+    fontStyle: 'default',
+    uiScale: 1,
+    textColor: '#fbf4e9',
+    typeStyles: {},
+    customFonts: [],
+    playlistTitle: '今日歌单',
+    playlistKicker: "TONIGHT'S PLAYLIST",
+    playlistNote: '点歌请打在公屏',
+    titleImage: '',
+    avatar: '',
+    showAvatar: true,
+    speed: 1,
+    autoplay: true,
+    columns: 2,
+    theme: 'amber',
+    opacity: .62,
+    background: ''
+  };
+
+  const THEMES = {
+    amber: { accent: '#e7b97a', rgb: '231, 185, 122' },
+    rose: { accent: '#e5a9a4', rgb: '229, 169, 164' },
+    mint: { accent: '#a8d2bf', rgb: '168, 210, 191' },
+    violet: { accent: '#bdace5', rgb: '189, 172, 229' }
+  };
+
+  const FONT_STACKS = {
+    default: {
+      serif: '"Noto Serif SC", "Source Han Serif SC", "Songti SC", "STSong", "SimSun", serif',
+      sans: '"MiSans", "HarmonyOS Sans SC", "PingFang SC", "Microsoft YaHei", "Noto Sans SC", sans-serif'
+    },
+    song: {
+      serif: '"Songti SC", "STSong", "SimSun", "Noto Serif SC", serif',
+      sans: '"Songti SC", "STSong", "SimSun", "Noto Serif SC", serif'
+    },
+    hei: {
+      serif: '"Microsoft YaHei", "Noto Sans SC", "PingFang SC", sans-serif',
+      sans: '"Microsoft YaHei", "Noto Sans SC", "PingFang SC", sans-serif'
+    },
+    kai: {
+      serif: '"KaiTi", "STKaiti", "Kaiti SC", serif',
+      sans: '"KaiTi", "STKaiti", "Kaiti SC", serif'
+    },
+    yuan: {
+      serif: '"YouYuan", "Microsoft YaHei", "Noto Sans SC", sans-serif',
+      sans: '"YouYuan", "Microsoft YaHei", "Noto Sans SC", sans-serif'
+    }
+  };
+
+  const TYPE_SELECTORS = {
+    eyebrow: '#eyebrow',
+    stationTitle: '#stationTitle',
+    subtitle: '#subtitle',
+    tags: '.tag',
+    actions: '.action',
+    announce: '#announce',
+    handle: '#handle',
+    playlistKicker: '#playlistKicker',
+    playlistTitle: '#playlistTitle',
+    song: '.song',
+    artist: '.artist',
+    playlistNote: '#playlistNote'
+  };
+
+  const station = document.getElementById('station');
+  const stage = document.getElementById('stage');
+  const photo = document.getElementById('photo');
+  const eyebrow = document.getElementById('eyebrow');
+  const avatarWrap = document.getElementById('avatarWrap');
+  const avatar = document.getElementById('avatar');
+  const avatarInitial = document.getElementById('avatarInitial');
+  const stationTitle = document.getElementById('stationTitle');
+  const titleImage = document.getElementById('titleImage');
+  const subtitle = document.getElementById('subtitle');
+  const tags = document.getElementById('tags');
+  const actions = document.getElementById('actions');
+  const announce = document.getElementById('announce');
+  const handle = document.getElementById('handle');
+  const playlistKicker = document.getElementById('playlistKicker');
+  const playlistTitle = document.getElementById('playlistTitle');
+  const playlistNote = document.getElementById('playlistNote');
+  const count = document.getElementById('count');
+  const list = document.getElementById('list');
+  const track = document.getElementById('track');
+
+  let state = DEFAULT_STATE;
+  let renderTimer = 0;
+
+  bindBridge();
+  applyState(state);
+
+  function bindBridge() {
+    const bridge = window.desktopBridge;
+    if (!bridge) return;
+    if (typeof bridge.onWidgetState === 'function') {
+      bridge.onWidgetState((incoming) => {
+        if (incoming && typeof incoming === 'object') applyState(incoming);
+      });
+    }
+    if (typeof bridge.widgetReady === 'function') bridge.widgetReady();
+
+    let lastWidth = window.innerWidth;
+    let lastHeight = window.innerHeight;
+    window.addEventListener('resize', () => {
+      if (Math.abs(window.innerWidth - lastWidth) < 2 && Math.abs(window.innerHeight - lastHeight) < 2) return;
+      lastWidth = window.innerWidth;
+      lastHeight = window.innerHeight;
+      applyStageScale(state.uiScale);
+      clearTimeout(renderTimer);
+      renderTimer = setTimeout(renderSongs, 120);
+    });
+  }
+
+  function applyStageScale(scale) {
+    const value = clamp(Number(scale) || 1, 1, 1.5);
+    stage.style.width = `${window.innerWidth / value}px`;
+    stage.style.height = `${window.innerHeight / value}px`;
+    stage.style.transform = `scale(${value})`;
+  }
+
+  function hexToRgb(hex) {
+    const value = String(hex || '').replace('#', '');
+    if (!/^[0-9a-f]{6}$/i.test(value)) return null;
+    return {
+      r: parseInt(value.slice(0, 2), 16),
+      g: parseInt(value.slice(2, 4), 16),
+      b: parseInt(value.slice(4, 6), 16)
+    };
+  }
+
+  function applyState(incoming) {
+    state = incoming;
+    const fonts = FONT_STACKS[state.fontStyle] || FONT_STACKS.default;
+    station.style.setProperty('--font-serif', fonts.serif);
+    station.style.setProperty('--font-sans', fonts.sans);
+    const textColor = /^#[0-9a-f]{6}$/i.test(String(state.textColor || '')) ? state.textColor : '#fbf4e9';
+    const rgb = hexToRgb(textColor);
+    if (rgb) station.style.setProperty('--text-rgb', `${rgb.r}, ${rgb.g}, ${rgb.b}`);
+    applyStageScale(state.uiScale);
+    const theme = THEMES[state.theme] || THEMES.amber;
+    station.style.setProperty('--accent', theme.accent);
+    station.style.setProperty('--accent-rgb', theme.rgb);
+    const rawOpacity = Number(state.opacity);
+    const cardOpacity = Number.isFinite(rawOpacity) ? clamp(rawOpacity, 0, .9) : .62;
+    station.style.setProperty('--card-opacity', String(cardOpacity));
+
+    const stationName = String(state.stationTitle || '').trim() || '未命名电台';
+    stationTitle.textContent = stationName;
+    titleImage.alt = stationName;
+    fitTitle(stationName, Boolean(state.titleImage));
+    if (state.titleImage) {
+      station.classList.add('has-title-image');
+      titleImage.src = state.titleImage;
+    } else {
+      station.classList.remove('has-title-image');
+      titleImage.removeAttribute('src');
+    }
+
+    if (state.avatar) {
+      avatar.src = state.avatar;
+      avatarWrap.classList.add('has-image');
+    } else {
+      avatar.removeAttribute('src');
+      avatarWrap.classList.remove('has-image');
+      avatarInitial.textContent = firstChar(stationName);
+    }
+    station.classList.toggle('hide-avatar', state.showAvatar === false);
+
+    eyebrow.textContent = String(state.eyebrow || '').trim();
+    eyebrow.style.display = eyebrow.textContent ? '' : 'none';
+    subtitle.textContent = String(state.subtitle || '').trim();
+    subtitle.style.display = subtitle.textContent ? '' : 'none';
+
+    const tagList = splitList(state.tagsText).slice(0, 4).map((item) => item.slice(0, 8));
+    tags.replaceChildren(...tagList.map((item) => {
+      const node = document.createElement('span');
+      node.className = 'tag';
+      node.textContent = item;
+      return node;
+    }));
+    tags.style.display = tagList.length ? '' : 'none';
+
+    const buttonList = Array.isArray(state.buttons) ? state.buttons.slice(0, 8) : [];
+    const buttonNodes = buttonList.map((button) => {
+      const node = document.createElement('span');
+      node.className = 'action';
+      if (button && button.icon) {
+        const image = document.createElement('img');
+        image.className = 'action-icon';
+        image.src = button.icon;
+        image.alt = '';
+        node.append(image);
+      } else {
+        node.append(document.createElement('i'));
+      }
+      const label = document.createElement('span');
+      label.className = 'action-label';
+      label.textContent = String(button && button.label || '').slice(0, 10);
+      node.append(label);
+      return node;
+    });
+    actions.replaceChildren(...buttonNodes);
+    actions.style.display = buttonNodes.length ? '' : 'none';
+
+    announce.textContent = String(state.announce || '').trim();
+    announce.style.display = announce.textContent ? '' : 'none';
+    handle.textContent = String(state.handle || '').trim();
+    handle.style.display = handle.textContent ? '' : 'none';
+
+    playlistTitle.textContent = String(state.playlistTitle || '').trim() || '今日歌单';
+    playlistKicker.textContent = String(state.playlistKicker || '').trim();
+    playlistKicker.style.display = playlistKicker.textContent ? '' : 'none';
+    playlistNote.textContent = String(state.playlistNote || '').trim();
+    playlistNote.style.display = playlistNote.textContent ? '' : 'none';
+
+    if (state.background) {
+      station.classList.add('has-photo');
+      photo.classList.add('is-on');
+      photo.style.backgroundImage = `url("${state.background}")`;
+    } else {
+      station.classList.remove('has-photo');
+      photo.classList.remove('is-on');
+      photo.removeAttribute('style');
+    }
+
+    applyCustomFonts();
+    renderSongs();
+  }
+
+  function applyCustomFonts() {
+    let styleEl = document.getElementById('custom-fonts');
+    if (!styleEl) {
+      styleEl = document.createElement('style');
+      styleEl.id = 'custom-fonts';
+      document.head.append(styleEl);
+    }
+    const fonts = Array.isArray(state.customFonts) ? state.customFonts : [];
+    styleEl.textContent = fonts.map((font) => {
+      const name = String(font && font.name || '').replace(/['"\\;{}]/g, '').slice(0, 40);
+      const data = String(font && font.data || '');
+      if (!name || !data.startsWith('data:')) return '';
+      return `@font-face{font-family:'${name}';src:url("${data}");font-display:swap;}`;
+    }).join('\n');
+  }
+
+  function applyTypeStyles() {
+    const styles = state.typeStyles && typeof state.typeStyles === 'object' ? state.typeStyles : {};
+    for (const [key, selector] of Object.entries(TYPE_SELECTORS)) {
+      const style = styles[key] && typeof styles[key] === 'object' ? styles[key] : {};
+      const fontStack = fontStackFor(style.font);
+      const size = Number(style.size);
+      const sizeCss = Number.isFinite(size) && size > 0 ? `${size}px` : '';
+      const color = /^#[0-9a-f]{6}$/i.test(String(style.color || '')) ? style.color : '';
+      document.querySelectorAll(selector).forEach((node) => {
+        node.style.fontFamily = fontStack;
+        if (key === 'stationTitle' && !sizeCss) {
+          /* keep the auto-fit size chosen by fitTitle */
+        } else {
+          node.style.fontSize = sizeCss;
+        }
+        node.style.color = color;
+      });
+    }
+  }
+
+  function fontStackFor(font) {
+    if (!font || font === 'auto') return '';
+    if (String(font).startsWith('custom:')) {
+      const name = String(font).slice(7).replace(/['"\\;{}]/g, '').slice(0, 40);
+      return name ? `"${name}", sans-serif` : '';
+    }
+    if (String(font).startsWith('system:')) {
+      const name = String(font).slice(7).replace(/['"\\;{}]/g, '').slice(0, 80);
+      return name ? `"${name}", sans-serif` : '';
+    }
+    const stacks = {
+      hei: FONT_STACKS.hei.sans,
+      song: FONT_STACKS.song.serif,
+      kai: FONT_STACKS.kai.sans,
+      yuan: FONT_STACKS.yuan.sans
+    };
+    return stacks[font] || '';
+  }
+
+  function firstChar(value) {
+    return Array.from(String(value || '').trim())[0] || '声';
+  }
+
+  function fitTitle(value, hasImage) {
+    if (hasImage) return;
+    const length = Array.from(value).length;
+    let size = 25;
+    if (length > 10) size = 15;
+    else if (length > 8) size = 17;
+    else if (length > 6) size = 19;
+    else if (length > 4) size = 21;
+    stationTitle.style.fontSize = size + 'px';
+  }
+
+  function splitList(text) {
+    return String(text || '').split(/[,，、\n]+/).map((item) => item.trim()).filter(Boolean);
+  }
+
+  function parseSongs(text) {
+    const result = [];
+    for (const raw of String(text || '').split(/\r?\n/)) {
+      const line = raw.trim().replace(/^[·•]\s*/, '');
+      if (!line) continue;
+      let name = line;
+      let artist = '';
+      let match = line.match(/^(.{1,50}?)\s*[|｜]\s*(.{1,36})$/);
+      if (!match) match = line.match(/^(.{1,50}?)\s+[-–—]\s+(.{1,36})$/);
+      if (match) {
+        name = match[1].trim();
+        artist = match[2].trim();
+      }
+      if (!name) continue;
+      result.push({ name: name.slice(0, 40), artist: artist.slice(0, 30) });
+      if (result.length >= 100) break;
+    }
+    return result;
+  }
+
+  function createRow(song, order) {
+    const row = document.createElement('div');
+    row.className = 'row';
+    const idx = document.createElement('span');
+    idx.className = 'idx';
+    idx.textContent = String(order).padStart(2, '0');
+    const copy = document.createElement('div');
+    copy.className = 'copy';
+    const name = document.createElement('span');
+    name.className = 'song';
+    name.textContent = song.name;
+    copy.append(name);
+    if (song.artist) {
+      const artist = document.createElement('span');
+      artist.className = 'artist';
+      artist.textContent = song.artist;
+      copy.append(artist);
+    }
+    row.append(idx, copy);
+    row.title = song.artist ? `${song.name} — ${song.artist}` : song.name;
+    return row;
+  }
+
+  function renderSongs() {
+    const songs = parseSongs(state.songsText);
+    const columns = Number(state.columns) === 1 ? 1 : 2;
+    count.textContent = String(songs.length);
+    station.style.setProperty('--cols', String(columns));
+
+    if (!songs.length) {
+      track.style.display = 'none';
+      track.innerHTML = '';
+      let empty = list.querySelector('.empty');
+      if (!empty) {
+        empty = document.createElement('div');
+        empty.className = 'empty';
+        empty.innerHTML = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/></svg><strong>歌单还是空的</strong><span>在设置里添加歌曲</span>';
+        list.append(empty);
+      }
+      applyTypeStyles();
+      return;
+    }
+    const empty = list.querySelector('.empty');
+    if (empty) empty.remove();
+    track.style.display = '';
+
+    const rowHeight = 40;
+    const visibleRows = Math.min(20, Math.max(5, Math.ceil(list.clientHeight / rowHeight) + 1));
+    const minItems = visibleRows * columns;
+    const repeat = Math.min(5, Math.max(1, Math.ceil(minItems / songs.length)));
+    const items = [];
+    for (let round = 0; round < repeat; round += 1) {
+      songs.forEach((song, index) => items.push({ song, order: index + 1 }));
+    }
+
+    const group = document.createElement('div');
+    group.className = 'group';
+    items.forEach((item) => group.append(createRow(item.song, item.order)));
+    const mirror = group.cloneNode(true);
+    mirror.setAttribute('aria-hidden', 'true');
+    track.replaceChildren(group, mirror);
+
+    const rows = Math.ceil(items.length / columns);
+    const height = group.offsetHeight || rows * rowHeight;
+    const duration = clamp(height / (24 * clamp(Number(state.speed) || 1, .3, 2.5)), 14, 220);
+    track.style.setProperty('--scroll-duration', duration.toFixed(1) + 's');
+    track.classList.toggle('is-paused', state.autoplay === false);
+    applyTypeStyles();
+  }
+
+  function clamp(value, min, max) {
+    return Math.min(max, Math.max(min, value));
+  }
+})();
+</script>
+</body>
+</html>
