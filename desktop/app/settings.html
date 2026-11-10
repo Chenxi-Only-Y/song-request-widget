@@ -1,0 +1,1768 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="light">
+<title>Song Request · 歌单挂件设置</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  :root {
+    --ink: #271f18;
+    --ink-soft: #55483a;
+    --muted: #918371;
+    --line: #e6dccd;
+    --paper: #f3ede3;
+    --panel: #fffdf9;
+    --cream: #faf6ef;
+    --gold: #a97a42;
+    --gold-deep: #80592d;
+    --danger: #a2523f;
+    --serif: "Noto Serif SC", "Source Han Serif SC", "Songti SC", "STSong", "SimSun", serif;
+    --sans: "MiSans", "HarmonyOS Sans SC", "PingFang SC", "Microsoft YaHei", "Noto Sans SC", sans-serif;
+  }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    overflow: hidden;
+    color: var(--ink);
+    background:
+      radial-gradient(900px 500px at 90% -10%, rgba(255, 249, 238, .96), transparent 64%),
+      radial-gradient(800px 500px at -10% 110%, rgba(225, 204, 173, .25), transparent 65%),
+      var(--paper);
+    font-family: var(--sans);
+    -webkit-font-smoothing: antialiased;
+  }
+  button, input, textarea { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  [hidden] { display: none !important; }
+  ::selection { background: rgba(169, 122, 66, .22); }
+
+  /* top bar */
+  .topbar {
+    height: 64px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 0 22px;
+    border-bottom: 1px solid rgba(128, 105, 75, .14);
+    background: rgba(247, 242, 233, .85);
+    backdrop-filter: blur(20px);
+  }
+  .brand { display: flex; align-items: center; gap: 11px; min-width: 0; }
+  .brand-mark {
+    width: 35px;
+    height: 35px;
+    flex: none;
+    display: grid;
+    place-items: center;
+    border-radius: 10px;
+    color: #e8c08b;
+    background: linear-gradient(150deg, #332b22, #17130f);
+    box-shadow: inset 0 0 0 1px rgba(255, 231, 195, .13), 0 6px 14px rgba(41, 31, 20, .16);
+  }
+  .brand-name {
+    font-family: var(--serif);
+    font-size: 17px;
+    font-weight: 700;
+    letter-spacing: .08em;
+    line-height: 1.15;
+  }
+  .brand-sub {
+    margin-top: 2px;
+    color: var(--muted);
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 8px;
+    letter-spacing: .24em;
+    text-transform: uppercase;
+  }
+  .top-actions { display: flex; align-items: center; gap: 9px; }
+  .save-state {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-right: 5px;
+    color: var(--muted);
+    font-size: 11px;
+    white-space: nowrap;
+  }
+  .save-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #82956f;
+    box-shadow: 0 0 0 3px rgba(129, 148, 111, .12);
+  }
+  .save-state[data-state="saving"] .save-dot { background: #c29a5e; box-shadow: 0 0 0 3px rgba(194, 154, 94, .13); }
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    height: 33px;
+    padding: 0 13px;
+    border: 1px solid transparent;
+    border-radius: 9px;
+    font-size: 11.5px;
+    font-weight: 600;
+    white-space: nowrap;
+    transition: background .16s ease, border-color .16s ease, transform .16s ease;
+  }
+  .btn:active { transform: translateY(1px); }
+  .btn-ghost {
+    color: var(--ink-soft);
+    background: rgba(255, 253, 248, .56);
+    border-color: rgba(128, 105, 75, .2);
+  }
+  .btn-ghost:hover { background: #fffdf8; border-color: rgba(128, 105, 75, .34); }
+  .btn-dark {
+    color: #f9f1e5;
+    background: linear-gradient(160deg, #332a21, #1e1914);
+    border-color: rgba(40, 30, 19, .5);
+    box-shadow: 0 7px 15px rgba(42, 31, 18, .14);
+  }
+  .btn-dark:hover { background: linear-gradient(160deg, #43382b, #2a221a); }
+
+  /* layout */
+  .layout {
+    height: calc(100vh - 64px);
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 330px;
+    gap: 16px;
+    padding: 17px 20px 20px;
+  }
+  .songs-card,
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    box-shadow: 0 12px 35px rgba(71, 50, 25, .055);
+  }
+  .songs-card {
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+    border-radius: 19px;
+  }
+  .left-scroll {
+    height: 100%;
+    overflow-y: auto;
+    padding: 18px 20px 20px;
+    scrollbar-width: thin;
+    scrollbar-color: #d8cbb8 transparent;
+  }
+  .left-scroll::-webkit-scrollbar { width: 5px; }
+  .left-scroll::-webkit-scrollbar-thumb { background: #ddd1c0; border-radius: 6px; }
+  .edit-block + .edit-block {
+    margin-top: 15px;
+    padding-top: 14px;
+    border-top: 1px dashed #eadfd0;
+  }
+  .block-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 11px;
+  }
+  .block-head h2 {
+    margin: 0;
+    font-family: var(--serif);
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: .05em;
+    line-height: 1.2;
+  }
+  .block-head p { margin: 3px 0 0; color: var(--muted); font-size: 9.5px; }
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 9px 10px; }
+  .form-grid .field + .field { margin-top: 0; }
+  .form-grid .field.is-full { grid-column: 1 / -1; }
+  .upload-group { display: flex; flex-direction: column; gap: 7px; }
+  .textarea-song { height: 148px; min-height: 118px; }
+  .card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; }
+  .eyebrow {
+    display: block;
+    color: #b1936b;
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 8.5px;
+    letter-spacing: .26em;
+    line-height: 1;
+  }
+  .card-head h1 {
+    margin: 5px 0 0;
+    font-family: var(--serif);
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: .06em;
+    line-height: 1.15;
+  }
+  .count-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    height: 24px;
+    padding: 0 9px;
+    border: 1px solid #e8ddcc;
+    border-radius: 7px;
+    color: #8b7357;
+    background: #faf6ee;
+    font-size: 10px;
+    white-space: nowrap;
+  }
+  .count-pill b { font-family: Georgia, "Times New Roman", serif; font-size: 13px; font-weight: 400; }
+  .field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+  .field + .field { margin-top: 10px; }
+  .field-label {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    color: #5f503f;
+    font-size: 10.5px;
+    font-weight: 600;
+  }
+  .field-label small { color: #a69783; font-size: 9.5px; font-weight: 400; }
+  .input, .textarea {
+    width: 100%;
+    border: 1px solid #e5d9c8;
+    border-radius: 8px;
+    color: var(--ink);
+    background: #fbf7f0;
+    font-size: 12px;
+    outline: none;
+    transition: border-color .16s ease, box-shadow .16s ease, background .16s ease;
+  }
+  .input { height: 35px; padding: 0 10px; }
+  .select {
+    width: 100%;
+    height: 35px;
+    padding: 0 8px;
+    border: 1px solid #e5d9c8;
+    border-radius: 8px;
+    color: var(--ink);
+    background: #fbf7f0;
+    font-size: 11.5px;
+    outline: none;
+  }
+  .select:focus { border-color: #c4a274; box-shadow: 0 0 0 3px rgba(178, 137, 83, .11); }
+  .color-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 12px; padding-top: 10px; border-top: 1px dashed #eadfd0; }
+  .color-pick { display: flex; align-items: center; gap: 6px; flex: none; }
+  .color-input {
+    width: 30px;
+    height: 28px;
+    padding: 2px;
+    border: 1px solid #e5d9c8;
+    border-radius: 7px;
+    background: #fffdf9;
+    cursor: pointer;
+  }
+  .color-hex { color: #9a8b78; font-family: ui-monospace, Consolas, monospace; font-size: 9px; }
+  .font-import {
+    margin-top: 11px;
+    padding-top: 10px;
+    border-top: 1px dashed #eadfd0;
+  }
+  .font-import .mini-btn { margin-top: 6px; height: 27px; }
+  .font-list { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; }
+  .font-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    padding: 5px 7px;
+    border: 1px solid #eee4d6;
+    border-radius: 7px;
+    color: #6f5d49;
+    background: #fbf7f0;
+    font-size: 9px;
+  }
+  .font-item span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .font-item .mini-btn { height: 22px; margin-top: 0; padding: 0 6px; font-size: 8px; }
+  .input:focus, .textarea:focus {
+    border-color: #c4a274;
+    background: #fffdf9;
+    box-shadow: 0 0 0 3px rgba(178, 137, 83, .11);
+  }
+  .songs-editor { display: flex; flex-direction: column; flex: 1; min-height: 0; margin-top: 11px; }
+  .songs-editor .field { flex: 1; min-height: 0; }
+  .textarea {
+    flex: 1;
+    min-height: 175px;
+    padding: 9px 10px;
+    resize: none;
+    line-height: 1.72;
+    font-size: 12px;
+  }
+  .hint { margin: 7px 0 0; color: #9a8b78; font-size: 9.5px; line-height: 1.6; }
+  .hint code { padding: 1px 4px; border-radius: 4px; background: #f1e9dd; color: #806a50; font-family: ui-monospace, Consolas, monospace; font-size: 9px; }
+  .quick-add { display: grid; grid-template-columns: 1fr auto; gap: 7px; margin-top: 8px; }
+  .quick-add .btn { height: 35px; border-radius: 8px; font-size: 10.5px; }
+  .bottom-actions { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 9px; }
+  .mini-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 27px;
+    padding: 0 9px;
+    border: 1px solid #e5d9c8;
+    border-radius: 7px;
+    color: #81705b;
+    background: #fbf7f0;
+    font-size: 9.5px;
+    white-space: nowrap;
+  }
+  .mini-btn:hover { border-color: #ceb18a; color: #5f4b33; background: #fffdf9; }
+  .mini-btn:disabled { opacity: .42; cursor: not-allowed; }
+  .mini-btn.is-danger:hover { color: var(--danger); border-color: #dbc3b8; background: #fdf8f5; }
+  .tip { color: #a69783; font-size: 9px; }
+
+  .side {
+    min-height: 0;
+    overflow-y: auto;
+    padding-right: 2px;
+    scrollbar-width: thin;
+    scrollbar-color: #d8cbb8 transparent;
+  }
+  .side::-webkit-scrollbar { width: 5px; }
+  .side::-webkit-scrollbar-thumb { background: #ddd1c0; border-radius: 6px; }
+  .panel { padding: 15px 16px 16px; border-radius: 14px; }
+  .panel + .panel { margin-top: 11px; }
+  .panel h2 {
+    margin: 0 0 10px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    color: #7f6b53;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .13em;
+    text-transform: uppercase;
+  }
+  .panel h2 span {
+    color: #b6a58f;
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 8.5px;
+    font-weight: 400;
+    letter-spacing: .06em;
+  }
+  .control-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    min-height: 30px;
+  }
+  .control-row + .control-row { margin-top: 4px; }
+  .control-copy strong { display: block; color: #5b4c3b; font-size: 11px; font-weight: 600; }
+  .control-copy small { display: block; margin-top: 1px; color: #a99a87; font-size: 9px; }
+  .switch { position: relative; display: inline-flex; flex: none; width: 36px; height: 20px; }
+  .switch input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+  .switch-track {
+    position: absolute;
+    inset: 0;
+    border-radius: 99px;
+    background: #ded2c1;
+    transition: background .18s ease;
+    cursor: pointer;
+  }
+  .switch-track::after {
+    content: "";
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #fffdf9;
+    box-shadow: 0 1px 4px rgba(66, 48, 29, .18);
+    transition: transform .18s cubic-bezier(.2, .8, .3, 1);
+  }
+  .switch input:checked + .switch-track { background: #302820; }
+  .switch input:checked + .switch-track::after { transform: translateX(16px); }
+  .switch input:focus-visible + .switch-track { outline: 2px solid var(--gold); outline-offset: 2px; }
+  .note { margin: 9px 0 0; color: #9a8b79; font-size: 9px; line-height: 1.65; }
+  .size-row { display: grid; grid-template-columns: 1fr 1fr auto; gap: 7px; margin-top: 11px; align-items: end; }
+  .size-row label { display: flex; flex-direction: column; gap: 4px; color: #8f7e69; font-size: 9px; }
+  .size-row .input { height: 32px; padding: 0 8px; font-size: 11px; }
+  .size-row .mini-btn { height: 32px; }
+  .bounds-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px dashed #eadfd0;
+    color: #7f6b53;
+    font-size: 9.5px;
+    font-weight: 700;
+    letter-spacing: .1em;
+  }
+  .bounds-head small { color: #a99a87; font-family: Georgia, "Times New Roman", serif; font-size: 9px; font-weight: 400; letter-spacing: .02em; }
+  .position-row { display: grid; grid-template-columns: 1fr 1fr auto; gap: 7px; margin-top: 7px; align-items: end; }
+  .position-row label { display: flex; flex-direction: column; gap: 4px; color: #8f7e69; font-size: 9px; }
+  .position-row .input { height: 32px; padding: 0 8px; font-size: 11px; }
+  .position-row .mini-btn { height: 32px; }
+  .action-editor { display: flex; flex-direction: column; gap: 6px; }
+  .action-edit-row {
+    display: grid;
+    grid-template-columns: 28px minmax(0, 1fr) auto auto auto;
+    gap: 5px;
+    align-items: center;
+    padding: 5px 6px;
+    border: 1px solid #eee4d6;
+    border-radius: 8px;
+    background: #fbf7f0;
+  }
+  .action-thumb {
+    display: grid;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    overflow: hidden;
+    border: 1px solid #e6dac9;
+    border-radius: 6px;
+    color: #b6a58f;
+    background: #fffdf9;
+    font-size: 8px;
+  }
+  .action-thumb img { width: 100%; height: 100%; object-fit: contain; }
+  .action-edit-row .input { height: 30px; padding: 0 8px; font-size: 10.5px; }
+  .action-edit-row .mini-btn { height: 26px; padding: 0 6px; font-size: 8.5px; }
+  .action-edit-row .is-delete { color: #9a6a5c; }
+  .action-edit-row .is-delete:hover { color: var(--danger); border-color: #dbc3b8; background: #fdf8f5; }
+  .action-empty { padding: 12px; border: 1px dashed #e3d7c7; border-radius: 8px; color: #a69783; background: #fbf7f0; font-size: 9.5px; text-align: center; }
+  .link-btn { display: inline-flex; padding: 0; margin-top: 9px; border: 0; background: transparent; color: #a08c76; font-size: 9.5px; text-decoration: underline; text-underline-offset: 3px; text-decoration-color: #d8c8b2; }
+  .link-btn:hover { color: var(--gold-deep); }
+
+  .range-row { display: flex; align-items: center; gap: 8px; }
+  .range {
+    -webkit-appearance: none;
+    appearance: none;
+    flex: 1;
+    height: 4px;
+    border-radius: 99px;
+    outline: none;
+    background: linear-gradient(90deg, #b98f59 var(--fill, 50%), #e8ddce var(--fill, 50%));
+  }
+  .range::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 14px;
+    height: 14px;
+    border: 3px solid #fffdf9;
+    border-radius: 50%;
+    background: #9e7444;
+    box-shadow: 0 1px 5px rgba(77, 53, 25, .28);
+    cursor: pointer;
+  }
+  .range-value { min-width: 36px; text-align: right; color: #8c7961; font-family: Georgia, "Times New Roman", serif; font-size: 10px; }
+  .segmented { display: flex; gap: 2px; margin-top: 9px; padding: 3px; border: 1px solid #e8ddce; border-radius: 8px; background: #f4ede2; }
+  .segmented button { flex: 1; height: 24px; border: 0; border-radius: 5px; color: #8b7b67; background: transparent; font-size: 9.5px; font-weight: 600; }
+  .segmented button.is-active { color: #3d3226; background: #fffdf9; box-shadow: 0 1px 5px rgba(75, 53, 27, .09); }
+  .theme-row { display: flex; gap: 8px; margin: 2px 0 10px; }
+  .swatch {
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    border: 2px solid #fffdf9;
+    border-radius: 50%;
+    background: var(--swatch, #e7b97a);
+    box-shadow: 0 0 0 1px #ded2c1;
+  }
+  .swatch.is-active { box-shadow: 0 0 0 2px #8e6b42; }
+  .swatch[data-theme="rose"] { --swatch: #e5a9a4; }
+  .swatch[data-theme="mint"] { --swatch: #a8d2bf; }
+  .swatch[data-theme="violet"] { --swatch: #bdace5; }
+  .upload-lines { display: flex; flex-direction: column; gap: 7px; }
+  .upload-line {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 7px 8px;
+    border: 1px solid #eee4d6;
+    border-radius: 8px;
+    background: #fbf7f0;
+  }
+  .upload-copy { min-width: 0; }
+  .upload-copy strong { display: block; color: #63523f; font-size: 9.5px; font-weight: 600; }
+  .upload-copy small { display: block; margin-top: 1px; overflow: hidden; color: #a59580; font-size: 8.5px; text-overflow: ellipsis; white-space: nowrap; }
+  .upload-actions { display: flex; flex: none; gap: 4px; }
+  .upload-actions .mini-btn { height: 24px; padding: 0 7px; font-size: 8.5px; }
+  .footnote { margin: 11px 2px 0; color: #a49683; font-size: 8.5px; line-height: 1.65; text-align: center; }
+
+  .toast {
+    position: fixed;
+    left: 50%;
+    bottom: 18px;
+    z-index: 20;
+    max-width: 80vw;
+    padding: 8px 13px;
+    border: 1px solid rgba(255, 236, 209, .16);
+    border-radius: 9px;
+    color: #f8efe2;
+    background: rgba(33, 27, 21, .94);
+    box-shadow: 0 12px 30px rgba(34, 25, 15, .2);
+    font-size: 10px;
+    opacity: 0;
+    transform: translate(-50%, 6px);
+    pointer-events: none;
+    transition: opacity .2s ease, transform .2s ease;
+  }
+  .toast.is-show { opacity: 1; transform: translate(-50%, 0); }
+
+  @media (max-width: 830px) {
+    .layout { grid-template-columns: 1fr; overflow-y: auto; }
+    .songs-card { min-height: 520px; }
+    .side { overflow: visible; }
+  }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <div class="brand-mark" aria-hidden="true">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none">
+        <rect x="3.5" y="9" width="2.6" height="7" rx="1.3" fill="currentColor" opacity=".85"/>
+        <rect x="8.6" y="4.5" width="2.6" height="15" rx="1.3" fill="currentColor"/>
+        <rect x="13.7" y="7" width="2.6" height="10" rx="1.3" fill="currentColor" opacity=".72"/>
+        <rect x="18.8" y="10.5" width="2.2" height="4" rx="1.1" fill="currentColor" opacity=".6"/>
+      </svg>
+    </div>
+    <div>
+      <div class="brand-name">Song Request</div>
+      <div class="brand-sub">Desktop Song Widget</div>
+    </div>
+  </div>
+  <div class="top-actions">
+    <div class="save-state" id="saveState" data-state="saved"><i class="save-dot"></i><span id="saveText">已保存</span></div>
+    <button class="btn btn-ghost" id="viewBtn" type="button">查看挂件</button>
+    <button class="btn btn-dark" id="quitBtn" type="button">退出</button>
+  </div>
+</header>
+
+<main class="layout">
+  <section class="songs-card" aria-label="点歌台内容">
+    <div class="left-scroll">
+      <section class="edit-block">
+        <header class="block-head">
+          <div>
+            <span class="eyebrow">PLAYLIST</span>
+            <h2>歌单</h2>
+            <p>这里是挂件右侧的滚动歌单</p>
+          </div>
+          <span class="count-pill"><b id="songCount">0</b> 首</span>
+        </header>
+        <div class="form-grid">
+          <div class="field">
+            <label class="field-label" for="playlistTitleInput">歌单标题</label>
+            <input class="input" id="playlistTitleInput" type="text" maxlength="24" autocomplete="off" placeholder="今日歌单">
+          </div>
+          <div class="field">
+            <label class="field-label" for="playlistKickerInput">顶部小字 <small>可选</small></label>
+            <input class="input" id="playlistKickerInput" type="text" maxlength="36" autocomplete="off" placeholder="TONIGHT'S PLAYLIST">
+          </div>
+          <div class="field is-full">
+            <label class="field-label" for="playlistNoteInput">底部提示 <small>可留空</small></label>
+            <input class="input" id="playlistNoteInput" type="text" maxlength="36" autocomplete="off" placeholder="点歌请打在公屏">
+          </div>
+        </div>
+        <div class="field" style="margin-top:9px">
+          <label class="field-label" for="songsInput">歌曲列表 <small>每行一首</small></label>
+          <textarea class="textarea textarea-song" id="songsInput" spellcheck="false" placeholder="晴天 - 周杰伦&#10;后来 - 刘若英&#10;如愿 - 王菲"></textarea>
+        </div>
+        <p class="hint">支持 <code>歌名 - 歌手</code> 或 <code>歌名｜歌手</code>，只写歌名也可以。修改后挂件会自动更新。</p>
+        <div class="quick-add">
+          <input class="input" id="quickSong" type="text" maxlength="60" autocomplete="off" placeholder="快速添加：晴天 - 周杰伦">
+          <button class="btn btn-dark" id="quickAddBtn" type="button">添加</button>
+        </div>
+        <div class="bottom-actions">
+          <span class="tip">拖动挂件任意位置可以移动</span>
+          <div>
+            <button class="mini-btn" id="sampleBtn" type="button">填入示例</button>
+            <button class="mini-btn is-danger" id="clearBtn" type="button">清空歌单</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="edit-block">
+        <header class="block-head">
+          <div>
+            <span class="eyebrow">STATION</span>
+            <h2>电台信息</h2>
+            <p>挂件左侧的标题、头像和介绍</p>
+          </div>
+        </header>
+        <div class="form-grid">
+          <div class="field">
+            <label class="field-label" for="stationTitleInput">电台名称 <small>最多 24 字</small></label>
+            <input class="input" id="stationTitleInput" type="text" maxlength="24" autocomplete="off" placeholder="晚风电台">
+          </div>
+          <div class="field">
+            <label class="field-label" for="eyebrowInput">顶部小标 <small>可留空</small></label>
+            <input class="input" id="eyebrowInput" type="text" maxlength="36" autocomplete="off" placeholder="YJ · NIGHT RADIO">
+          </div>
+          <div class="field is-full">
+            <label class="field-label" for="subtitleInput">副标题</label>
+            <input class="input" id="subtitleInput" type="text" maxlength="44" autocomplete="off" placeholder="治愈音乐台 · 每晚 21:30">
+          </div>
+          <div class="field">
+            <label class="field-label" for="tagsInput">小标签 <small>逗号分隔</small></label>
+            <input class="input" id="tagsInput" type="text" maxlength="60" autocomplete="off" placeholder="治愈系, 深夜陪伴, 点歌台">
+          </div>
+          <div class="field">
+            <label class="field-label" for="handleInput">落款 / 账号</label>
+            <input class="input" id="handleInput" type="text" maxlength="36" autocomplete="off" placeholder="@晚风电台">
+          </div>
+          <div class="field is-full">
+            <label class="field-label" for="announceInput">一句话 / 公告</label>
+            <input class="input" id="announceInput" type="text" maxlength="60" autocomplete="off" placeholder="今晚也要好好睡觉。">
+          </div>
+        </div>
+        <div class="upload-group" style="margin-top:9px">
+          <div class="upload-line">
+            <div class="upload-copy">
+              <strong>标题艺术字</strong>
+              <small id="titleImageName">可选，透明 PNG / WebP</small>
+            </div>
+            <div class="upload-actions">
+              <button class="mini-btn" id="titleImagePickBtn" type="button">选择</button>
+              <button class="mini-btn" id="titleImageRemoveBtn" type="button" hidden>移除</button>
+            </div>
+          </div>
+          <div class="upload-line">
+            <div class="upload-copy">
+              <strong>主播头像</strong>
+              <small id="avatarName">可不显示，方形图片自动裁圆</small>
+            </div>
+            <div class="upload-actions">
+              <button class="mini-btn" id="avatarPickBtn" type="button">选择</button>
+              <button class="mini-btn" id="avatarRemoveBtn" type="button" hidden>移除</button>
+            </div>
+          </div>
+        </div>
+        <div class="control-row" style="margin-top:8px">
+          <div class="control-copy"><strong>显示头像</strong><small>关闭后只显示标题</small></div>
+          <label class="switch"><input id="showAvatarToggle" type="checkbox"><span class="switch-track"></span></label>
+        </div>
+      </section>
+
+      <section class="edit-block">
+        <header class="block-head">
+          <div>
+            <span class="eyebrow">ACTIONS</span>
+            <h2>互动按钮</h2>
+            <p>每个按钮单独设置，可给按钮上传前面的图标</p>
+          </div>
+          <button class="mini-btn" id="addActionBtn" type="button">+ 添加</button>
+        </header>
+        <div class="action-editor" id="actionList"></div>
+        <p class="hint">最多 8 个按钮。按钮文字建议 2–6 个字；图标建议透明底 PNG / WebP。删除按钮只移除这一项。</p>
+      </section>
+    </div>
+  </section>
+
+  <aside class="side">
+    <section class="panel">
+      <h2>挂件显示 <span>WIDGET</span></h2>
+      <div class="control-row">
+        <div class="control-copy"><strong>显示点歌台挂件</strong><small>在桌面上显示</small></div>
+        <label class="switch"><input id="visibleToggle" type="checkbox"><span class="switch-track"></span></label>
+      </div>
+      <div class="control-row">
+        <div class="control-copy"><strong>始终置顶</strong><small>显示在其他窗口上方</small></div>
+        <label class="switch"><input id="topToggle" type="checkbox"><span class="switch-track"></span></label>
+      </div>
+      <div class="control-row">
+        <div class="control-copy"><strong>鼠标穿透</strong><small>点击会穿透到桌面</small></div>
+        <label class="switch"><input id="throughToggle" type="checkbox"><span class="switch-track"></span></label>
+      </div>
+      <div class="control-row">
+        <div class="control-copy"><strong>允许拖动</strong><small>关闭后锁定位置，防止误碰</small></div>
+        <label class="switch"><input id="dragToggle" type="checkbox"><span class="switch-track"></span></label>
+      </div>
+      <p class="note">默认放在桌面右侧的画框位置。拖动挂件任意位置即可移动。开启鼠标穿透后，需要先关闭才能拖动。</p>
+
+      <div class="bounds-head">
+        <span>大小与比例</span>
+        <small id="ratioValue">1.58 : 1</small>
+      </div>
+      <div class="control-row" style="margin-top:8px">
+        <div class="control-copy"><strong>锁定宽高比例</strong><small>改宽度时高度会自动跟随</small></div>
+        <label class="switch"><input id="aspectLockToggle" type="checkbox"><span class="switch-track"></span></label>
+      </div>
+      <div class="size-row">
+        <label>宽度 <input class="input" id="widthInput" type="number" min="660" max="1300" step="10"></label>
+        <label>高度 <input class="input" id="heightInput" type="number" min="430" max="850" step="10"></label>
+        <button class="mini-btn" id="applySizeBtn" type="button">应用尺寸</button>
+      </div>
+      <button class="link-btn" id="resetBoundsBtn" type="button">复位到默认画框位置</button>
+    </section>
+
+    <section class="panel">
+      <h2>滚动 <span>SCROLL</span></h2>
+      <div class="control-row">
+        <div class="control-copy"><strong>自动滚动</strong><small>关闭后停在当前位置</small></div>
+        <label class="switch"><input id="autoplayToggle" type="checkbox"><span class="switch-track"></span></label>
+      </div>
+      <div class="field" style="margin-top:11px">
+        <div class="field-label"><span>滚动速度</span><small class="range-value" id="speedValue">1.0×</small></div>
+        <div class="range-row"><input class="range" id="speedRange" type="range" min="0.3" max="2.5" step="0.1" value="1"></div>
+      </div>
+      <div class="segmented" role="group" aria-label="列表列数">
+        <button id="col1Btn" type="button" data-cols="1">单列</button>
+        <button id="col2Btn" type="button" data-cols="2" class="is-active">双列</button>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>文字样式 <span>TYPE</span></h2>
+      <div class="field">
+        <label class="field-label" for="typeSectionSelect">要修改的文字 <small>每栏独立</small></label>
+        <select class="select" id="typeSectionSelect">
+          <option value="eyebrow">顶部小标</option>
+          <option value="stationTitle">电台名称</option>
+          <option value="subtitle">副标题</option>
+          <option value="tags">小标签</option>
+          <option value="actions">互动按钮</option>
+          <option value="announce">公告</option>
+          <option value="handle">落款</option>
+          <option value="playlistKicker">歌单小字</option>
+          <option value="playlistTitle">歌单标题</option>
+          <option value="song">歌曲名</option>
+          <option value="artist">歌手</option>
+          <option value="playlistNote">歌单底部提示</option>
+        </select>
+      </div>
+      <div class="field" style="margin-top:9px">
+        <label class="field-label" for="sectionFontSelect">字体</label>
+        <select class="select" id="sectionFontSelect"></select>
+      </div>
+      <div class="field" style="margin-top:9px">
+        <div class="field-label"><span>字号</span><small class="range-value" id="sectionSizeValue">12px</small></div>
+        <div class="range-row"><input class="range" id="sectionSizeRange" type="range" min="6" max="36" step="0.5" value="12"></div>
+      </div>
+      <div class="color-row">
+        <div class="control-copy"><strong>颜色</strong><small>只作用于当前栏</small></div>
+        <div class="color-pick">
+          <input class="color-input" id="sectionColorInput" type="color" value="#fbf4e9">
+          <span class="color-hex" id="sectionColorValue">默认</span>
+        </div>
+      </div>
+      <p class="note">切换上面的文字栏，分别设置字体、字号、颜色；不设置就跟随原样式。</p>
+
+      <div class="font-import">
+        <div class="field-label"><span>导入自己的字体</span><small>最多 4 个</small></div>
+        <button class="mini-btn" id="importFontBtn" type="button">选择字体文件</button>
+        <div class="font-list" id="fontList"></div>
+        <p class="hint">支持 .ttf / .otf / .woff / .woff2，单个小于 8MB；导入后会出现在“字体”下拉里。</p>
+      </div>
+      <button class="link-btn" id="resetSectionStyle" type="button">恢复当前栏默认</button>
+    </section>
+
+    <section class="panel">
+      <h2>外观 <span>STYLE</span></h2>
+      <div class="theme-row" role="group" aria-label="主题色">
+        <button class="swatch is-active" type="button" data-theme="amber" aria-label="暖金"></button>
+        <button class="swatch" type="button" data-theme="rose" aria-label="烟粉"></button>
+        <button class="swatch" type="button" data-theme="mint" aria-label="雾青"></button>
+        <button class="swatch" type="button" data-theme="violet" aria-label="暮紫"></button>
+      </div>
+      <div class="field">
+        <div class="field-label"><span>卡片浓度</span><small class="range-value" id="opacityValue">62%</small></div>
+        <div class="range-row"><input class="range" id="opacityRange" type="range" min="0" max="90" step="1" value="62"></div>
+      </div>
+      <div class="upload-lines" style="margin-top:10px">
+        <div class="upload-line">
+          <div class="upload-copy">
+            <strong>照片背景</strong>
+            <small id="bgName">不传则透明</small>
+          </div>
+          <div class="upload-actions">
+            <button class="mini-btn" id="bgPickBtn" type="button">选择</button>
+            <button class="mini-btn" id="bgRemoveBtn" type="button" hidden>移除</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <p class="footnote">关闭设置窗口后会留在系统托盘，挂件继续显示。<br>重新打开设置：双击托盘图标，或再次启动 Song Request。</p>
+  </aside>
+</main>
+
+<input type="file" id="bgFile" accept="image/*" hidden>
+<input type="file" id="titleImageFile" accept="image/*" hidden>
+<input type="file" id="avatarFile" accept="image/*" hidden>
+<input type="file" id="actionIconFile" accept="image/*" hidden>
+<input type="file" id="fontFile" accept=".ttf,.otf,.woff,.woff2,font/ttf,font/otf,font/woff,font/woff2" hidden>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(() => {
+  'use strict';
+
+  const SAMPLE_SONGS = [
+    '晴天 - 周杰伦', '后来 - 刘若英', '如愿 - 王菲', '童话 - 光良',
+    '稻香 - 周杰伦', '青花 - 周传雄', '句号 - 邓紫棋', '黄昏 - 周传雄',
+    '幻听 - 许嵩', '月光 - 胡彦斌', '遇见 - 孙燕姿', '偏爱 - 张芸京',
+    '如果可以 - 韦礼安', '慢冷 - 梁静茹', '爱情转移 - 陈奕迅', '想你的夜 - 关喆'
+  ].join('\n');
+
+  const TYPE_SECTIONS = {
+    eyebrow: { label: '顶部小标', size: 8.5, color: '#c49a63' },
+    stationTitle: { label: '电台名称', size: 25, color: '#fbf4e9' },
+    subtitle: { label: '副标题', size: 9.5, color: '#a99a87' },
+    tags: { label: '小标签', size: 8, color: '#b8a897' },
+    actions: { label: '互动按钮', size: 12, color: '#f5ede2' },
+    announce: { label: '公告', size: 11, color: '#fbf4e9' },
+    handle: { label: '落款', size: 8, color: '#c49a63' },
+    playlistKicker: { label: '歌单小字', size: 7.5, color: '#c49a63' },
+    playlistTitle: { label: '歌单标题', size: 22, color: '#fbf4e9' },
+    song: { label: '歌曲名', size: 12.5, color: '#fbf4e9' },
+    artist: { label: '歌手', size: 8.5, color: '#a99a87' },
+    playlistNote: { label: '歌单底部提示', size: 7.5, color: '#a99a87' }
+  };
+
+  const FALLBACK_STATE = {
+    songsText: SAMPLE_SONGS,
+    stationTitle: '晚风电台',
+    eyebrow: 'YJ · NIGHT RADIO',
+    subtitle: '治愈音乐台 · 每晚 21:30',
+    tagsText: '治愈系, 深夜陪伴, 点歌台',
+    buttons: [
+      { label: '送歌', icon: '' }, { label: '学歌', icon: '' },
+      { label: '录歌', icon: '' }, { label: '卡卡冠歌', icon: '' },
+      { label: '非粉丝牌点歌', icon: '' }, { label: '粉丝牌点歌', icon: '' },
+      { label: '续火', icon: '' }, { label: '接下班', icon: '' }
+    ],
+    announce: '今晚也要好好睡觉。',
+    handle: '@晚风电台',
+    fontStyle: 'default',
+    uiScale: 1,
+    textColor: '#fbf4e9',
+    typeStyles: {},
+    customFonts: [],
+    playlistTitle: '今日歌单',
+    playlistKicker: "TONIGHT'S PLAYLIST",
+    playlistNote: '点歌请打在公屏',
+    titleImage: '',
+    avatar: '',
+    showAvatar: true,
+    speed: 1,
+    autoplay: true,
+    columns: 2,
+    theme: 'amber',
+    opacity: .62,
+    background: '',
+    widget: { x: null, y: null, width: 800, height: 475, visible: true, alwaysOnTop: false, clickThrough: false, draggable: true, aspectLock: true }
+  };
+
+  const bridge = window.desktopBridge;
+  const $ = (selector) => document.querySelector(selector);
+  const el = {
+    saveState: $('#saveState'), saveText: $('#saveText'), toast: $('#toast'),
+    playlistTitleInput: $('#playlistTitleInput'), playlistKickerInput: $('#playlistKickerInput'),
+    playlistNoteInput: $('#playlistNoteInput'), songsInput: $('#songsInput'), songCount: $('#songCount'),
+    quickSong: $('#quickSong'), quickAddBtn: $('#quickAddBtn'), sampleBtn: $('#sampleBtn'), clearBtn: $('#clearBtn'),
+    stationTitleInput: $('#stationTitleInput'), eyebrowInput: $('#eyebrowInput'), subtitleInput: $('#subtitleInput'),
+    tagsInput: $('#tagsInput'), announceInput: $('#announceInput'), handleInput: $('#handleInput'),
+    actionList: $('#actionList'), addActionBtn: $('#addActionBtn'), actionIconFile: $('#actionIconFile'),
+    titleImagePickBtn: $('#titleImagePickBtn'), titleImageRemoveBtn: $('#titleImageRemoveBtn'),
+    titleImageName: $('#titleImageName'), titleImageFile: $('#titleImageFile'),
+    avatarPickBtn: $('#avatarPickBtn'), avatarRemoveBtn: $('#avatarRemoveBtn'),
+    avatarName: $('#avatarName'), avatarFile: $('#avatarFile'), showAvatarToggle: $('#showAvatarToggle'),
+    visibleToggle: $('#visibleToggle'), topToggle: $('#topToggle'), throughToggle: $('#throughToggle'),
+    dragToggle: $('#dragToggle'), aspectLockToggle: $('#aspectLockToggle'), ratioValue: $('#ratioValue'),
+    widthInput: $('#widthInput'), heightInput: $('#heightInput'), applySizeBtn: $('#applySizeBtn'),
+    resetBoundsBtn: $('#resetBoundsBtn'),
+    autoplayToggle: $('#autoplayToggle'), speedRange: $('#speedRange'), speedValue: $('#speedValue'),
+    col1Btn: $('#col1Btn'), col2Btn: $('#col2Btn'),
+    typeSectionSelect: $('#typeSectionSelect'), sectionFontSelect: $('#sectionFontSelect'),
+    sectionSizeRange: $('#sectionSizeRange'), sectionSizeValue: $('#sectionSizeValue'),
+    sectionColorInput: $('#sectionColorInput'), sectionColorValue: $('#sectionColorValue'),
+    resetSectionStyle: $('#resetSectionStyle'), importFontBtn: $('#importFontBtn'),
+    fontFile: $('#fontFile'), fontList: $('#fontList'),
+    opacityRange: $('#opacityRange'), opacityValue: $('#opacityValue'),
+    swatches: Array.from(document.querySelectorAll('.swatch')),
+    bgPickBtn: $('#bgPickBtn'), bgRemoveBtn: $('#bgRemoveBtn'), bgName: $('#bgName'), bgFile: $('#bgFile'),
+    viewBtn: $('#viewBtn'), quitBtn: $('#quitBtn')
+  };
+
+  let state = clone(FALLBACK_STATE);
+  let saveTimer = 0;
+  let toastTimer = 0;
+  let saving = false;
+  let pendingSave = false;
+  let sizeRatio = 800 / 475;
+  let pendingActionIndex = -1;
+  let syncingSize = false;
+  let selectedTypeSection = 'eyebrow';
+  let systemFonts = [];
+
+  boot();
+
+  async function boot() {
+    if (bridge) {
+      try {
+        state = await bridge.getState();
+      } catch (error) {
+        state = clone(FALLBACK_STATE);
+      }
+    }
+    hydrate();
+    bind();
+    if (bridge && typeof bridge.onWidgetVisibility === 'function') {
+      bridge.onWidgetVisibility((visible) => {
+        state.widget.visible = Boolean(visible);
+        el.visibleToggle.checked = Boolean(visible);
+      });
+    }
+    if (bridge && typeof bridge.listSystemFonts === 'function') {
+      bridge.listSystemFonts().then((fonts) => {
+        systemFonts = Array.isArray(fonts) ? fonts : [];
+        renderTypeEditor();
+      }).catch(() => {
+        systemFonts = [];
+      });
+    }
+    if (bridge && typeof bridge.onGeometry === 'function') {
+      bridge.onGeometry((geometry) => {
+        if (!geometry) return;
+        state.widget.x = geometry.x;
+        state.widget.y = geometry.y;
+        state.widget.width = geometry.width;
+        state.widget.height = geometry.height;
+        if (document.activeElement !== el.widthInput) el.widthInput.value = geometry.width;
+        if (document.activeElement !== el.heightInput) el.heightInput.value = geometry.height;
+        if (document.activeElement !== el.widthInput && document.activeElement !== el.heightInput) {
+          sizeRatio = geometry.width / geometry.height;
+          updateRatioLabel();
+        }
+      });
+    }
+  }
+
+  function clone(value) {
+    return JSON.parse(JSON.stringify(value));
+  }
+
+  function hydrate() {
+    el.playlistTitleInput.value = state.playlistTitle || '';
+    el.playlistKickerInput.value = state.playlistKicker || '';
+    el.playlistNoteInput.value = state.playlistNote || '';
+    el.songsInput.value = state.songsText || '';
+    el.songCount.textContent = String(countSongs(state.songsText));
+
+    el.stationTitleInput.value = state.stationTitle || '';
+    el.eyebrowInput.value = state.eyebrow || '';
+    el.subtitleInput.value = state.subtitle || '';
+    el.tagsInput.value = state.tagsText || '';
+    el.announceInput.value = state.announce || '';
+    el.handleInput.value = state.handle || '';
+    renderActions();
+
+    el.showAvatarToggle.checked = state.showAvatar !== false;
+    el.visibleToggle.checked = state.widget.visible !== false;
+    el.topToggle.checked = state.widget.alwaysOnTop === true;
+    el.throughToggle.checked = state.widget.clickThrough === true;
+    el.dragToggle.checked = state.widget.draggable !== false;
+    el.aspectLockToggle.checked = state.widget.aspectLock !== false;
+    el.widthInput.value = state.widget.width || 800;
+    el.heightInput.value = state.widget.height || 475;
+    sizeRatio = (Number(state.widget.width) || 800) / (Number(state.widget.height) || 475);
+    updateRatioLabel();
+
+    el.autoplayToggle.checked = state.autoplay !== false;
+    el.speedRange.value = String(state.speed || 1);
+    el.speedValue.textContent = Number(state.speed || 1).toFixed(1) + '×';
+    const cardOpacity = Number.isFinite(Number(state.opacity)) ? Number(state.opacity) : .62;
+    el.opacityRange.value = String(Math.round(cardOpacity * 100));
+    el.opacityValue.textContent = Math.round(cardOpacity * 100) + '%';
+    renderTypeEditor();
+    renderFontList();
+    paintRange(el.speedRange);
+    paintRange(el.opacityRange);
+    syncColumns();
+    syncThemes();
+    updateUploadUi();
+  }
+
+  function bind() {
+    bindText(el.playlistTitleInput, 'playlistTitle');
+    bindText(el.playlistKickerInput, 'playlistKicker');
+    bindText(el.playlistNoteInput, 'playlistNote');
+    bindText(el.stationTitleInput, 'stationTitle');
+    bindText(el.eyebrowInput, 'eyebrow');
+    bindText(el.subtitleInput, 'subtitle');
+    bindText(el.tagsInput, 'tagsText');
+    bindText(el.announceInput, 'announce');
+    bindText(el.handleInput, 'handle');
+
+    el.addActionBtn.addEventListener('click', addAction);
+    el.actionIconFile.addEventListener('change', async () => {
+      const index = pendingActionIndex;
+      pendingActionIndex = -1;
+      const file = el.actionIconFile.files && el.actionIconFile.files[0];
+      el.actionIconFile.value = '';
+      if (!file || index < 0 || !state.buttons[index]) return;
+      if (!file.type.startsWith('image/')) return toast('请选择图片文件');
+      try {
+        state.buttons[index].icon = await compressImage(file, 'icon');
+        renderActions();
+        saveNow();
+        toast('按钮图标已更新');
+      } catch (error) {
+        toast(error.message || '图片处理失败');
+      }
+    });
+
+    el.songsInput.addEventListener('input', () => {
+      state.songsText = el.songsInput.value;
+      el.songCount.textContent = String(countSongs(state.songsText));
+      scheduleSave();
+    });
+
+    el.quickAddBtn.addEventListener('click', addSong);
+    el.quickSong.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        addSong();
+      }
+    });
+    el.sampleBtn.addEventListener('click', () => {
+      state.songsText = SAMPLE_SONGS;
+      el.songsInput.value = SAMPLE_SONGS;
+      el.songCount.textContent = String(countSongs(SAMPLE_SONGS));
+      saveNow();
+      toast('已填入示例歌单');
+    });
+    el.clearBtn.addEventListener('click', () => {
+      state.songsText = '';
+      el.songsInput.value = '';
+      el.songCount.textContent = '0';
+      saveNow();
+      toast('歌单已清空');
+    });
+
+    el.visibleToggle.addEventListener('change', () => {
+      state.widget.visible = el.visibleToggle.checked;
+      saveNow();
+    });
+    el.topToggle.addEventListener('change', () => {
+      state.widget.alwaysOnTop = el.topToggle.checked;
+      saveNow();
+    });
+    el.throughToggle.addEventListener('change', () => {
+      state.widget.clickThrough = el.throughToggle.checked;
+      saveNow();
+      toast(state.widget.clickThrough ? '已开启鼠标穿透；先在设置里关闭才能拖动' : '已关闭鼠标穿透，可以拖动挂件');
+    });
+    el.dragToggle.addEventListener('change', () => {
+      state.widget.draggable = el.dragToggle.checked;
+      saveNow();
+      toast(state.widget.draggable ? '已允许拖动挂件' : '已锁定挂件位置');
+    });
+    el.aspectLockToggle.addEventListener('change', () => {
+      state.widget.aspectLock = el.aspectLockToggle.checked;
+      if (state.widget.aspectLock) {
+        const ratio = Number(el.widthInput.value) / Number(el.heightInput.value);
+        if (Number.isFinite(ratio) && ratio > 0) sizeRatio = ratio;
+      }
+      updateRatioLabel();
+      saveNow();
+    });
+    el.widthInput.addEventListener('input', () => {
+      if (syncingSize || !el.aspectLockToggle.checked) return;
+      const width = Number(el.widthInput.value);
+      if (!Number.isFinite(width) || width <= 0) return;
+      syncingSize = true;
+      el.heightInput.value = String(Math.max(430, Math.min(850, Math.round(width / sizeRatio))));
+      syncingSize = false;
+    });
+    el.heightInput.addEventListener('input', () => {
+      if (syncingSize || !el.aspectLockToggle.checked) return;
+      const height = Number(el.heightInput.value);
+      if (!Number.isFinite(height) || height <= 0) return;
+      syncingSize = true;
+      el.widthInput.value = String(Math.max(660, Math.min(1300, Math.round(height * sizeRatio))));
+      syncingSize = false;
+    });
+    el.applySizeBtn.addEventListener('click', applySize);
+    el.resetBoundsBtn.addEventListener('click', resetBounds);
+
+    el.autoplayToggle.addEventListener('change', () => {
+      state.autoplay = el.autoplayToggle.checked;
+      scheduleSave();
+    });
+    el.speedRange.addEventListener('input', () => {
+      state.speed = Number(el.speedRange.value);
+      el.speedValue.textContent = state.speed.toFixed(1) + '×';
+      paintRange(el.speedRange);
+      scheduleSave();
+    });
+    [el.col1Btn, el.col2Btn].forEach((button) => {
+      button.addEventListener('click', () => {
+        state.columns = Number(button.dataset.cols);
+        syncColumns();
+        scheduleSave();
+      });
+    });
+    el.opacityRange.addEventListener('input', () => {
+      state.opacity = Number(el.opacityRange.value) / 100;
+      el.opacityValue.textContent = el.opacityRange.value + '%';
+      paintRange(el.opacityRange);
+      scheduleSave();
+    });
+    el.swatches.forEach((swatch) => {
+      swatch.addEventListener('click', () => {
+        state.theme = swatch.dataset.theme;
+        syncThemes();
+        scheduleSave();
+      });
+    });
+
+    el.typeSectionSelect.addEventListener('change', () => {
+      selectedTypeSection = el.typeSectionSelect.value;
+      renderTypeEditor();
+    });
+    el.sectionFontSelect.addEventListener('change', () => {
+      updateTypeStyle({ font: el.sectionFontSelect.value });
+      saveNow();
+      toast('当前栏字体已更新');
+    });
+    el.sectionSizeRange.addEventListener('input', () => {
+      const size = Number(el.sectionSizeRange.value);
+      updateTypeStyle({ size });
+      el.sectionSizeValue.textContent = `${size}px`;
+      paintRange(el.sectionSizeRange);
+      scheduleSave();
+    });
+    el.sectionColorInput.addEventListener('input', () => {
+      const color = el.sectionColorInput.value;
+      updateTypeStyle({ color });
+      el.sectionColorValue.textContent = color.toUpperCase();
+      scheduleSave();
+    });
+    el.resetSectionStyle.addEventListener('click', () => {
+      if (state.typeStyles) delete state.typeStyles[selectedTypeSection];
+      renderTypeEditor();
+      saveNow();
+      toast('当前栏已恢复默认');
+    });
+    el.importFontBtn.addEventListener('click', () => el.fontFile.click());
+    el.fontFile.addEventListener('change', () => importFontFile());
+
+    el.titleImagePickBtn.addEventListener('click', () => el.titleImageFile.click());
+    el.titleImageFile.addEventListener('change', async () => {
+      const file = el.titleImageFile.files && el.titleImageFile.files[0];
+      el.titleImageFile.value = '';
+      if (!file) return;
+      if (!file.type.startsWith('image/')) return toast('请选择图片文件');
+      el.titleImageName.textContent = '处理中…';
+      try {
+        state.titleImage = await compressImage(file, 'title');
+        updateUploadUi();
+        saveNow();
+        toast('标题艺术字已更新');
+      } catch (error) {
+        updateUploadUi();
+        toast(error.message || '图片处理失败');
+      }
+    });
+    el.titleImageRemoveBtn.addEventListener('click', () => {
+      state.titleImage = '';
+      updateUploadUi();
+      saveNow();
+      toast('已移除标题艺术字');
+    });
+
+    el.avatarPickBtn.addEventListener('click', () => el.avatarFile.click());
+    el.avatarFile.addEventListener('change', async () => {
+      const file = el.avatarFile.files && el.avatarFile.files[0];
+      el.avatarFile.value = '';
+      if (!file) return;
+      if (!file.type.startsWith('image/')) return toast('请选择图片文件');
+      el.avatarName.textContent = '处理中…';
+      try {
+        state.avatar = await compressImage(file, 'avatar');
+        updateUploadUi();
+        saveNow();
+        toast('头像已更新');
+      } catch (error) {
+        updateUploadUi();
+        toast(error.message || '图片处理失败');
+      }
+    });
+    el.avatarRemoveBtn.addEventListener('click', () => {
+      state.avatar = '';
+      updateUploadUi();
+      saveNow();
+      toast('已移除头像');
+    });
+    el.showAvatarToggle.addEventListener('change', () => {
+      state.showAvatar = el.showAvatarToggle.checked;
+      saveNow();
+    });
+
+    el.bgPickBtn.addEventListener('click', () => el.bgFile.click());
+    el.bgFile.addEventListener('change', async () => {
+      const file = el.bgFile.files && el.bgFile.files[0];
+      el.bgFile.value = '';
+      if (!file) return;
+      if (!file.type.startsWith('image/')) return toast('请选择图片文件');
+      el.bgName.textContent = '处理中…';
+      try {
+        state.background = await compressImage(file, 'background');
+        updateUploadUi();
+        saveNow();
+        toast('照片背景已更新');
+      } catch (error) {
+        updateUploadUi();
+        toast(error.message || '图片处理失败');
+      }
+    });
+    el.bgRemoveBtn.addEventListener('click', () => {
+      state.background = '';
+      updateUploadUi();
+      saveNow();
+      toast('已恢复透明背景');
+    });
+
+    el.viewBtn.addEventListener('click', async () => {
+      if (!state.widget.visible) {
+        state.widget.visible = true;
+        el.visibleToggle.checked = true;
+        await saveNow();
+      }
+      if (bridge) bridge.hideSettings();
+    });
+    el.quitBtn.addEventListener('click', () => {
+      if (window.confirm('退出 Song Request？点歌台挂件也会一起关闭。')) {
+        if (bridge) bridge.quitApp();
+      }
+    });
+  }
+
+  function bindText(input, key) {
+    input.addEventListener('input', () => {
+      state[key] = input.value;
+      scheduleSave();
+    });
+  }
+
+  function renderActions() {
+    if (!Array.isArray(state.buttons)) state.buttons = [];
+    el.actionList.replaceChildren();
+    el.addActionBtn.disabled = state.buttons.length >= 8;
+
+    if (!state.buttons.length) {
+      const empty = document.createElement('div');
+      empty.className = 'action-empty';
+      empty.textContent = '还没有按钮，点右上角「+ 添加」';
+      el.actionList.append(empty);
+      return;
+    }
+
+    state.buttons.forEach((button, index) => {
+      const row = document.createElement('div');
+      row.className = 'action-edit-row';
+
+      const thumb = document.createElement('div');
+      thumb.className = 'action-thumb';
+      if (button.icon) {
+        const image = document.createElement('img');
+        image.src = button.icon;
+        image.alt = '';
+        thumb.append(image);
+      } else {
+        const mark = document.createElement('span');
+        mark.textContent = '图';
+        thumb.append(mark);
+      }
+
+      const input = document.createElement('input');
+      input.className = 'input';
+      input.type = 'text';
+      input.maxLength = 10;
+      input.placeholder = '按钮文字';
+      input.value = button.label || '';
+      input.addEventListener('input', () => {
+        state.buttons[index].label = input.value;
+        scheduleSave();
+      });
+
+      const iconBtn = document.createElement('button');
+      iconBtn.className = 'mini-btn';
+      iconBtn.type = 'button';
+      iconBtn.textContent = button.icon ? '换图' : '图标';
+      iconBtn.addEventListener('click', () => {
+        pendingActionIndex = index;
+        el.actionIconFile.click();
+      });
+
+      const clearIconBtn = document.createElement('button');
+      clearIconBtn.className = 'mini-btn';
+      clearIconBtn.type = 'button';
+      clearIconBtn.textContent = '去图';
+      clearIconBtn.hidden = !button.icon;
+      clearIconBtn.addEventListener('click', () => {
+        state.buttons[index].icon = '';
+        renderActions();
+        saveNow();
+        toast('已移除按钮图标');
+      });
+
+      const deleteBtn = document.createElement('button');
+      deleteBtn.className = 'mini-btn is-delete';
+      deleteBtn.type = 'button';
+      deleteBtn.textContent = '删';
+      deleteBtn.addEventListener('click', () => {
+        state.buttons.splice(index, 1);
+        renderActions();
+        saveNow();
+        toast('已删除这个按钮');
+      });
+
+      row.append(thumb, input, iconBtn, clearIconBtn, deleteBtn);
+      el.actionList.append(row);
+    });
+  }
+
+  function addAction() {
+    if (!Array.isArray(state.buttons)) state.buttons = [];
+    if (state.buttons.length >= 8) {
+      toast('最多 8 个按钮');
+      return;
+    }
+    state.buttons.push({ label: '新按钮', icon: '' });
+    renderActions();
+    saveNow();
+    const inputs = el.actionList.querySelectorAll('input');
+    const last = inputs[inputs.length - 1];
+    if (last) {
+      last.focus();
+      last.select();
+    }
+    toast('已添加按钮，可单独设置文字和图标');
+  }
+
+  function updateRatioLabel() {
+    if (!el.ratioValue) return;
+    const ratio = Number.isFinite(sizeRatio) && sizeRatio > 0 ? sizeRatio : 1.58;
+    el.ratioValue.textContent = `${ratio.toFixed(2)} : 1`;
+  }
+
+  function applyBoundsResult(result, syncRatio = false) {
+    if (!result || !result.state || !result.state.widget) return false;
+    state.widget = { ...state.widget, ...result.state.widget };
+    if (document.activeElement !== el.widthInput) el.widthInput.value = state.widget.width;
+    if (document.activeElement !== el.heightInput) el.heightInput.value = state.widget.height;
+    if (syncRatio && state.widget.height > 0) {
+      sizeRatio = state.widget.width / state.widget.height;
+      updateRatioLabel();
+    }
+    return true;
+  }
+
+  function addSong() {
+    const line = el.quickSong.value.trim();
+    if (!line) {
+      el.quickSong.focus();
+      return;
+    }
+    const current = state.songsText.trim();
+    state.songsText = current ? current + '\n' + line : line;
+    el.songsInput.value = state.songsText;
+    el.songCount.textContent = String(countSongs(state.songsText));
+    el.quickSong.value = '';
+    saveNow();
+    el.songsInput.scrollTop = el.songsInput.scrollHeight;
+    el.quickSong.focus();
+    toast('已加入歌单');
+  }
+
+  function countSongs(text) {
+    return String(text || '').split(/\r?\n/).filter((line) => line.trim()).length;
+  }
+
+  function syncColumns() {
+    el.col1Btn.classList.toggle('is-active', Number(state.columns) === 1);
+    el.col2Btn.classList.toggle('is-active', Number(state.columns) === 2);
+  }
+
+  function syncThemes() {
+    el.swatches.forEach((swatch) => {
+      swatch.classList.toggle('is-active', swatch.dataset.theme === state.theme);
+    });
+  }
+
+  function paintRange(range) {
+    const min = Number(range.min);
+    const max = Number(range.max);
+    const percent = ((Number(range.value) - min) / (max - min)) * 100;
+    range.style.setProperty('--fill', percent.toFixed(1) + '%');
+  }
+
+  function updateUploadUi() {
+    el.titleImageName.textContent = state.titleImage ? '已设置标题艺术字' : '可选，透明 PNG / WebP';
+    el.titleImageRemoveBtn.hidden = !state.titleImage;
+    el.avatarName.textContent = state.avatar ? '已设置头像' : '可不显示，方形图片自动裁圆';
+    el.avatarRemoveBtn.hidden = !state.avatar;
+    el.bgName.textContent = state.background ? '已设置照片背景' : '不传则透明';
+    el.bgRemoveBtn.hidden = !state.background;
+  }
+
+  function scheduleSave() {
+    setSaveState('saving', '保存中…');
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(() => {
+      saveTimer = 0;
+      saveNow();
+    }, 260);
+  }
+
+  async function saveNow() {
+    clearTimeout(saveTimer);
+    saveTimer = 0;
+    if (!bridge) {
+      setSaveState('saved', '已保存');
+      return;
+    }
+    if (saving) {
+      pendingSave = true;
+      return;
+    }
+    saving = true;
+    setSaveState('saving', '保存中…');
+    try {
+      const result = await bridge.saveState(state);
+      if (result && result.state) {
+        state.widget = result.state.widget;
+        if (document.activeElement !== el.widthInput) el.widthInput.value = state.widget.width || '';
+        if (document.activeElement !== el.heightInput) el.heightInput.value = state.widget.height || '';
+      }
+      setSaveState('saved', '已保存');
+    } catch (error) {
+      setSaveState('error', '保存失败');
+      toast('保存失败，请重试');
+    } finally {
+      saving = false;
+      if (pendingSave) {
+        pendingSave = false;
+        saveNow();
+      }
+    }
+  }
+
+  function updateTypeStyle(patch) {
+    if (!state.typeStyles) state.typeStyles = {};
+    const style = { ...(state.typeStyles[selectedTypeSection] || {}) };
+    for (const [key, value] of Object.entries(patch)) {
+      if (value === 'auto' || value === null || value === undefined || value === '') delete style[key];
+      else style[key] = value;
+    }
+    if (Object.keys(style).length) state.typeStyles[selectedTypeSection] = style;
+    else delete state.typeStyles[selectedTypeSection];
+  }
+
+  function renderTypeEditor() {
+    const def = TYPE_SECTIONS[selectedTypeSection] || TYPE_SECTIONS.eyebrow;
+    const style = state.typeStyles && state.typeStyles[selectedTypeSection] ? state.typeStyles[selectedTypeSection] : {};
+    el.typeSectionSelect.value = selectedTypeSection;
+    renderFontOptions(style.font || 'auto');
+
+    const size = Number.isFinite(Number(style.size)) ? Number(style.size) : def.size;
+    el.sectionSizeRange.value = String(size);
+    el.sectionSizeValue.textContent = style.size ? `${size}px` : `${size}px（默认）`;
+    paintRange(el.sectionSizeRange);
+
+    const color = style.color || def.color;
+    el.sectionColorInput.value = color;
+    el.sectionColorValue.textContent = style.color ? color.toUpperCase() : '默认';
+  }
+
+  function renderFontOptions(selected) {
+    const preset = [
+      { value: 'auto', label: '默认' },
+      { value: 'hei', label: '黑体' },
+      { value: 'song', label: '宋体' },
+      { value: 'kai', label: '楷体' },
+      { value: 'yuan', label: '圆体' }
+    ];
+    const presets = document.createElement('optgroup');
+    presets.label = '预设';
+    preset.forEach((item) => {
+      const option = document.createElement('option');
+      option.value = item.value;
+      option.textContent = item.label;
+      presets.append(option);
+    });
+
+    el.sectionFontSelect.replaceChildren(presets);
+    if (systemFonts.length) {
+      const group = document.createElement('optgroup');
+      group.label = `系统字体（${systemFonts.length}）`;
+      systemFonts.forEach((name) => {
+        const option = document.createElement('option');
+        option.value = `system:${name}`;
+        option.textContent = name;
+        group.append(option);
+      });
+      el.sectionFontSelect.append(group);
+    }
+    if (state.customFonts && state.customFonts.length) {
+      const group = document.createElement('optgroup');
+      group.label = '导入的字体';
+      state.customFonts.forEach((font) => {
+        const option = document.createElement('option');
+        option.value = `custom:${font.name}`;
+        option.textContent = font.name;
+        group.append(option);
+      });
+      el.sectionFontSelect.append(group);
+    }
+    const values = Array.from(el.sectionFontSelect.options).map((option) => option.value);
+    el.sectionFontSelect.value = values.includes(selected) ? selected : 'auto';
+  }
+
+  function renderFontList() {
+    if (!Array.isArray(state.customFonts)) state.customFonts = [];
+    el.fontList.replaceChildren();
+    if (!state.customFonts.length) {
+      const empty = document.createElement('div');
+      empty.className = 'font-item';
+      empty.innerHTML = '<span>还没有导入字体</span>';
+      el.fontList.append(empty);
+      return;
+    }
+    state.customFonts.forEach((font) => {
+      const row = document.createElement('div');
+      row.className = 'font-item';
+      const name = document.createElement('span');
+      name.textContent = font.name;
+      const remove = document.createElement('button');
+      remove.type = 'button';
+      remove.className = 'mini-btn is-delete';
+      remove.textContent = '删除';
+      remove.addEventListener('click', () => removeCustomFont(font.name));
+      row.append(name, remove);
+      el.fontList.append(row);
+    });
+  }
+
+  async function importFontFile() {
+    const file = el.fontFile.files && el.fontFile.files[0];
+    el.fontFile.value = '';
+    if (!file) return;
+    if (!/\.(ttf|otf|woff2?|TTF|OTF|WOFF2?)$/i.test(file.name)) return toast('请选择 .ttf / .otf / .woff / .woff2 字体文件');
+    if (file.size > 8 * 1024 * 1024) return toast('字体文件请小于 8MB');
+    if (!Array.isArray(state.customFonts)) state.customFonts = [];
+    if (state.customFonts.length >= 4) return toast('最多导入 4 个字体');
+    let name = file.name.replace(/\.[^.]+$/, '').trim().slice(0, 40) || '自定义字体';
+    const used = new Set(state.customFonts.map((font) => font.name));
+    if (used.has(name)) {
+      let index = 2;
+      while (used.has(`${name} ${index}`)) index += 1;
+      name = `${name} ${index}`;
+    }
+    try {
+      const data = await readFileAsDataURL(file);
+      state.customFonts.push({ name, data });
+      await saveNow();
+      renderFontList();
+      renderTypeEditor();
+      toast(`字体「${name}」已导入`);
+    } catch (error) {
+      toast('字体读取失败');
+    }
+  }
+
+  function removeCustomFont(name) {
+    if (!Array.isArray(state.customFonts)) return;
+    state.customFonts = state.customFonts.filter((font) => font.name !== name);
+    if (state.typeStyles) {
+      for (const style of Object.values(state.typeStyles)) {
+        if (style.font === `custom:${name}`) delete style.font;
+      }
+    }
+    saveNow();
+    renderFontList();
+    renderTypeEditor();
+    toast('字体已移除');
+  }
+
+  function readFileAsDataURL(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = () => reject(reader.error);
+      reader.readAsDataURL(file);
+    });
+  }
+
+  async function applyUiScale(scale) {
+    const previous = Number.isFinite(Number(state.uiScale)) ? Number(state.uiScale) : 1;
+    const next = Math.max(1, Math.min(1.5, Number(scale) || 1));
+    if (Math.abs(next - previous) < .001) return;
+    const factor = next / previous;
+    const width = Math.round((Number(state.widget.width) || 708) * factor);
+    const height = Math.round((Number(state.widget.height) || 448) * factor);
+    state.uiScale = next;
+    if (bridge && typeof bridge.setWidgetBounds === 'function') {
+      try {
+        const result = await bridge.setWidgetBounds({ width, height });
+        if (result && result.state && result.state.widget) {
+          state.widget = { ...state.widget, ...result.state.widget };
+          if (document.activeElement !== el.widthInput) el.widthInput.value = state.widget.width;
+          if (document.activeElement !== el.heightInput) el.heightInput.value = state.widget.height;
+          sizeRatio = state.widget.width / state.widget.height;
+          updateRatioLabel();
+        }
+      } catch (error) {
+        /* keep the scale value and let the next save persist it */
+      }
+    } else {
+      state.widget.width = width;
+      state.widget.height = height;
+    }
+    await saveNow();
+    toast(`整体大小 ${Math.round(next * 100)}%`);
+  }
+
+  async function applySize() {
+    let width = Number(el.widthInput.value);
+    let height = Number(el.heightInput.value);
+    if (!Number.isFinite(width) || !Number.isFinite(height)) {
+      toast('请输入有效的宽度和高度');
+      return;
+    }
+    if (el.aspectLockToggle.checked) {
+      if (width > 0) height = Math.round(width / sizeRatio);
+      else if (height > 0) width = Math.round(height * sizeRatio);
+    }
+    width = Math.round(width);
+    height = Math.round(height);
+    if (width < 660 || height < 430) {
+      toast('尺寸最小为 660 × 430');
+      return;
+    }
+    if (bridge && typeof bridge.setWidgetBounds === 'function') {
+      const result = await bridge.setWidgetBounds({ width, height });
+      if (applyBoundsResult(result, !el.aspectLockToggle.checked)) {
+        if (!el.aspectLockToggle.checked) {
+          sizeRatio = state.widget.width / state.widget.height;
+          updateRatioLabel();
+        }
+        toast('挂件尺寸已更新');
+      }
+      return;
+    }
+    state.widget.width = width;
+    state.widget.height = height;
+    await saveNow();
+    toast('挂件尺寸已更新');
+  }
+
+  async function resetBounds() {
+    if (!bridge) return;
+    try {
+      const result = await bridge.resetBounds();
+      if (applyBoundsResult(result, true)) {
+        toast('已复位到默认画框位置');
+      }
+    } catch (error) {
+      toast('复位失败');
+    }
+  }
+
+  function setSaveState(kind, text) {
+    el.saveState.dataset.state = kind;
+    el.saveText.textContent = text;
+  }
+
+  function toast(message) {
+    clearTimeout(toastTimer);
+    el.toast.textContent = message;
+    el.toast.classList.add('is-show');
+    toastTimer = setTimeout(() => el.toast.classList.remove('is-show'), 2600);
+  }
+
+  function loadImage(file) {
+    return new Promise((resolve, reject) => {
+      const url = URL.createObjectURL(file);
+      const image = new Image();
+      image.onload = () => resolve({ image, url });
+      image.onerror = () => {
+        URL.revokeObjectURL(url);
+        reject(new Error('图片无法读取'));
+      };
+      image.src = url;
+    });
+  }
+
+  async function compressImage(file, kind) {
+    if (file.size > 25 * 1024 * 1024) throw new Error('图片太大，请小于 25MB');
+    const { image, url } = await loadImage(file);
+    try {
+      const canvas = document.createElement('canvas');
+      const context = canvas.getContext('2d', { alpha: kind === 'title' || kind === 'icon' });
+      if (!context) throw new Error('浏览器不支持图片处理');
+
+      if (kind === 'background') {
+        const maxWidth = 1600;
+        const maxHeight = 1000;
+        const scale = Math.min(1, maxWidth / image.naturalWidth, maxHeight / image.naturalHeight);
+        canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+        canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+        context.fillStyle = '#0b0a09';
+        context.fillRect(0, 0, canvas.width, canvas.height);
+        context.imageSmoothingQuality = 'high';
+        context.drawImage(image, 0, 0, canvas.width, canvas.height);
+        return canvas.toDataURL('image/jpeg', .86);
+      }
+
+      if (kind === 'avatar') {
+        const size = Math.min(image.naturalWidth, image.naturalHeight);
+        const sx = Math.round((image.naturalWidth - size) / 2);
+        const sy = Math.round((image.naturalHeight - size) / 2);
+        canvas.width = 360;
+        canvas.height = 360;
+        context.fillStyle = '#1a140f';
+        context.fillRect(0, 0, 360, 360);
+        context.imageSmoothingQuality = 'high';
+        context.drawImage(image, sx, sy, size, size, 0, 0, 360, 360);
+        return canvas.toDataURL('image/jpeg', .88);
+      }
+
+      if (kind === 'icon') {
+        const max = 96;
+        const scale = Math.min(1, max / image.naturalWidth, max / image.naturalHeight);
+        canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+        canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+        context.clearRect(0, 0, canvas.width, canvas.height);
+        context.imageSmoothingQuality = 'high';
+        context.drawImage(image, 0, 0, canvas.width, canvas.height);
+        const webp = canvas.toDataURL('image/webp', .94);
+        return webp.startsWith('data:image/webp') ? webp : canvas.toDataURL('image/png');
+      }
+
+      const maxWidth = 1200;
+      const maxHeight = 360;
+      const scale = Math.min(1, maxWidth / image.naturalWidth, maxHeight / image.naturalHeight);
+      canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+      canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+      context.clearRect(0, 0, canvas.width, canvas.height);
+      context.imageSmoothingQuality = 'high';
+      context.drawImage(image, 0, 0, canvas.width, canvas.height);
+      const webp = canvas.toDataURL('image/webp', .92);
+      return webp.startsWith('data:image/webp') ? webp : canvas.toDataURL('image/png');
+    } finally {
+      URL.revokeObjectURL(url);
+    }
+  }
+})();
+</script>
+</body>
+</html>
