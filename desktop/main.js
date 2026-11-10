@@ -414,6 +414,7 @@ function createSettingsWindow() {
     minHeight: 620,
     show: false,
     title: 'Song Request · 歌单挂件设置',
+    icon: path.join(__dirname, 'assets', 'icon.ico'),
     backgroundColor: '#f3ede3',
     autoHideMenuBar: true,
     webPreferences: {
@@ -470,6 +471,7 @@ function createWidgetWindow() {
     hasShadow: false,
     resizable: false,
     movable: state.widget.draggable !== false,
+    icon: path.join(__dirname, 'assets', 'icon.ico'),
     minimizable: false,
     maximizable: false,
     fullscreenable: false,
@@ -559,7 +561,8 @@ function sendGeometryToSettings() {
     x: state.widget.x,
     y: state.widget.y,
     width: state.widget.width,
-    height: state.widget.height
+    height: state.widget.height,
+    leftCollapsed: state.widget.leftCollapsed
   });
 }
 
@@ -600,6 +603,36 @@ function toggleWidget() {
   else showWidget();
 }
 
+function applyLeftCollapsed(collapsed) {
+  if (!state || !widgetWindow || widgetWindow.isDestroyed()) return { ok: false, state };
+  const next = Boolean(collapsed);
+  if (state.widget.leftCollapsed === next) return { ok: true, state };
+  const bounds = widgetWindow.getBounds();
+  if (next) {
+    const leftWidth = Math.round(bounds.width * 0.47);
+    state.widget.width = Math.max(340, bounds.width - leftWidth);
+    state.widget.x = bounds.x + (bounds.width - state.widget.width);
+  } else {
+    const totalWidth = Math.round(bounds.width / 0.53);
+    const leftWidth = totalWidth - bounds.width;
+    state.widget.width = totalWidth;
+    state.widget.x = bounds.x - leftWidth;
+  }
+  state.widget.height = bounds.height;
+  state.widget.leftCollapsed = next;
+  materializeBounds();
+  applyWidgetWindow();
+  sendWidgetState();
+  sendGeometryToSettings();
+  scheduleSave();
+  return { ok: true, state };
+}
+
+function toggleLeftCollapsed() {
+  if (!state) return;
+  applyLeftCollapsed(!state.widget.leftCollapsed);
+}
+
 function showSettings() {
   if (!settingsWindow || settingsWindow.isDestroyed()) {
     createSettingsWindow();
@@ -638,6 +671,11 @@ function registerShortcut() {
     globalShortcut.register('CommandOrControl+Alt+O', toggleWidget);
   } catch (error) {
     console.warn('Global shortcut failed:', error.message);
+  }
+  try {
+    globalShortcut.register('CommandOrControl+Alt+L', toggleLeftCollapsed);
+  } catch (error) {
+    console.warn('Left panel shortcut failed:', error.message);
   }
 }
 
@@ -686,30 +724,10 @@ function registerIpc() {
   });
 
   ipcMain.handle('widget:left-collapsed', (event, collapsed) => {
-    if (!widgetWindow || widgetWindow.isDestroyed() || event.sender !== widgetWindow.webContents) {
-      return { ok: false, state };
-    }
-    const next = Boolean(collapsed);
-    if (state.widget.leftCollapsed === next) return { ok: true, state };
-    const bounds = widgetWindow.getBounds();
-    if (next) {
-      const leftWidth = Math.round(bounds.width * 0.47);
-      state.widget.width = Math.max(340, bounds.width - leftWidth);
-      state.widget.x = bounds.x + (bounds.width - state.widget.width);
-    } else {
-      const totalWidth = Math.round(bounds.width / 0.53);
-      const leftWidth = totalWidth - bounds.width;
-      state.widget.width = totalWidth;
-      state.widget.x = bounds.x - leftWidth;
-    }
-    state.widget.height = bounds.height;
-    state.widget.leftCollapsed = next;
-    materializeBounds();
-    applyWidgetWindow();
-    sendWidgetState();
-    sendGeometryToSettings();
-    scheduleSave();
-    return { ok: true, state };
+    const fromWidget = widgetWindow && !widgetWindow.isDestroyed() && event.sender === widgetWindow.webContents;
+    const fromSettings = settingsWindow && !settingsWindow.isDestroyed() && event.sender === settingsWindow.webContents;
+    if (!fromWidget && !fromSettings) return { ok: false, state };
+    return applyLeftCollapsed(collapsed);
   });
 
   ipcMain.handle('widget:set-bounds', (event, bounds) => {

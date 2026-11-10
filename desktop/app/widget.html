@@ -39,12 +39,15 @@
       linear-gradient(150deg, rgba(34, 27, 22, var(--card-opacity)) 0%, rgba(11, 9, 8, var(--card-opacity)) 100%),
       radial-gradient(80% 70% at 12% 0%, rgba(var(--accent-rgb), calc(var(--card-opacity) * .15)), transparent 70%);
     box-shadow: inset 0 1px 0 rgba(255, 248, 235, calc(var(--card-opacity) * .14));
-    -webkit-app-region: drag;
-    cursor: grab;
     font-family: var(--font-sans);
     color: rgb(var(--text-rgb));
   }
-  .station * { -webkit-app-region: drag; }
+  .hero-top,
+  .identity,
+  .playlist-head {
+    -webkit-app-region: drag;
+    cursor: grab;
+  }
   .panel-toggle {
     flex: none;
     display: grid;
@@ -506,7 +509,7 @@
       <div class="hero-top">
         <span class="eyebrow" id="eyebrow">YJ · NIGHT RADIO</span>
         <span class="onair"><i></i>ON AIR</span>
-        <button class="panel-toggle" id="collapseBtn" type="button" title="收起电台信息" aria-label="收起电台信息">‹</button>
+        <button class="panel-toggle" id="collapseBtn" type="button" title="收起电台信息" aria-label="收起电台信息">›</button>
       </div>
       <span class="grip" aria-hidden="true">⠿</span>
 
@@ -540,7 +543,7 @@
 
     <section class="playlist">
       <header class="playlist-head">
-        <button class="panel-toggle expand-btn" id="expandBtn" type="button" title="展开电台信息" aria-label="展开电台信息">›</button>
+        <button class="panel-toggle expand-btn" id="expandBtn" type="button" title="展开电台信息" aria-label="展开电台信息">‹</button>
         <div style="min-width:0">
           <span class="kicker" id="playlistKicker">TONIGHT'S PLAYLIST</span>
           <div class="playlist-title-line">

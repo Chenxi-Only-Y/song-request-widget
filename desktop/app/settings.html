@@ -683,7 +683,11 @@
         <div class="control-copy"><strong>允许拖动</strong><small>关闭后锁定位置，防止误碰</small></div>
         <label class="switch"><input id="dragToggle" type="checkbox"><span class="switch-track"></span></label>
       </div>
-      <p class="note">默认放在桌面右侧的画框位置。拖动挂件任意位置即可移动。开启鼠标穿透后，需要先关闭才能拖动。</p>
+      <div class="control-row">
+        <div class="control-copy"><strong>显示左侧电台信息</strong><small>关闭后缩成只留歌单</small></div>
+        <label class="switch"><input id="leftPanelToggle" type="checkbox"><span class="switch-track"></span></label>
+      </div>
+      <p class="note">默认放在桌面右侧的画框位置。拖动标题/顶部区域即可移动。开启鼠标穿透后，挂件上的按钮和拖动都会失效，需要先关闭穿透，或按 Ctrl+Alt+L 收放左栏。</p>
 
       <div class="bounds-head">
         <span>大小与比例</span>
@@ -856,7 +860,7 @@
     theme: 'amber',
     opacity: .62,
     background: '',
-    widget: { x: null, y: null, width: 800, height: 475, visible: true, alwaysOnTop: false, clickThrough: false, draggable: true, aspectLock: true }
+    widget: { x: null, y: null, width: 800, height: 475, visible: true, alwaysOnTop: false, clickThrough: false, draggable: true, aspectLock: true, leftCollapsed: false }
   };
 
   const bridge = window.desktopBridge;
@@ -874,7 +878,7 @@
     avatarPickBtn: $('#avatarPickBtn'), avatarRemoveBtn: $('#avatarRemoveBtn'),
     avatarName: $('#avatarName'), avatarFile: $('#avatarFile'), showAvatarToggle: $('#showAvatarToggle'),
     visibleToggle: $('#visibleToggle'), topToggle: $('#topToggle'), throughToggle: $('#throughToggle'),
-    dragToggle: $('#dragToggle'), aspectLockToggle: $('#aspectLockToggle'), ratioValue: $('#ratioValue'),
+    dragToggle: $('#dragToggle'), leftPanelToggle: $('#leftPanelToggle'), aspectLockToggle: $('#aspectLockToggle'), ratioValue: $('#ratioValue'),
     widthInput: $('#widthInput'), heightInput: $('#heightInput'), applySizeBtn: $('#applySizeBtn'),
     resetBoundsBtn: $('#resetBoundsBtn'),
     autoplayToggle: $('#autoplayToggle'), speedRange: $('#speedRange'), speedValue: $('#speedValue'),
@@ -934,6 +938,8 @@
         state.widget.y = geometry.y;
         state.widget.width = geometry.width;
         state.widget.height = geometry.height;
+        state.widget.leftCollapsed = Boolean(geometry.leftCollapsed);
+        el.leftPanelToggle.checked = !state.widget.leftCollapsed;
         if (document.activeElement !== el.widthInput) el.widthInput.value = geometry.width;
         if (document.activeElement !== el.heightInput) el.heightInput.value = geometry.height;
         if (document.activeElement !== el.widthInput && document.activeElement !== el.heightInput) {
@@ -968,6 +974,7 @@
     el.topToggle.checked = state.widget.alwaysOnTop === true;
     el.throughToggle.checked = state.widget.clickThrough === true;
     el.dragToggle.checked = state.widget.draggable !== false;
+    el.leftPanelToggle.checked = state.widget.leftCollapsed !== true;
     el.aspectLockToggle.checked = state.widget.aspectLock !== false;
     el.widthInput.value = state.widget.width || 800;
     el.heightInput.value = state.widget.height || 475;
@@ -1063,6 +1070,16 @@
       state.widget.draggable = el.dragToggle.checked;
       saveNow();
       toast(state.widget.draggable ? '已允许拖动挂件' : '已锁定挂件位置');
+    });
+    el.leftPanelToggle.addEventListener('change', async () => {
+      const collapsed = !el.leftPanelToggle.checked;
+      state.widget.leftCollapsed = collapsed;
+      if (bridge && typeof bridge.setLeftCollapsed === 'function') {
+        await bridge.setLeftCollapsed(collapsed);
+      } else {
+        saveNow();
+      }
+      toast(collapsed ? '已收起左侧电台信息' : '已展开左侧电台信息');
     });
     el.aspectLockToggle.addEventListener('change', () => {
       state.widget.aspectLock = el.aspectLockToggle.checked;
