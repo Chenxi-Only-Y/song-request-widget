@@ -67,6 +67,14 @@ docs/                  README 截图
 - 应用未签名；Windows SmartScreen 可能提示，需要选择“更多信息 → 仍要运行”
 - 仓库只包含源码；Windows 免安装包建议放在 GitHub Releases，而不是提交进 Git
 
+## Contributing
+
+欢迎提交 Issue 和 Pull Request。开发、分支和提交说明见 [CONTRIBUTING.md](CONTRIBUTING.md)。
+
 ## License
 
-UNLICENSED · 仅供个人使用/修改。
+Copyright 2026 Chenxi-Only-Y.
+
+本项目使用 **Apache License 2.0**，可自由使用、修改、分发和商用，但需要保留许可证与版权声明，并注明修改过的文件。完整条款见 [LICENSE](LICENSE)，归属说明见 [NOTICE](NOTICE)。
+
+> 注意：Apache-2.0 是开源许可证，不是 Windows 代码签名证书；它不会消除 SmartScreen 的“未知发布者”提示。

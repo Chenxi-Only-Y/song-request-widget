@@ -5,7 +5,7 @@
   "description": "Windows 桌面透明点歌台挂件（Electron）",
   "main": "main.js",
   "author": "Song Request",
-  "license": "UNLICENSED",
+  "license": "Apache-2.0",
   "private": true,
   "scripts": {
     "start": "electron .",
@@ -16,3 +16,4 @@
     "@electron/packager": "^20.3.0"
   }
 }
+
